@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Secrets / environment (keep .env.example, never commit real keys)
+.env
+.env.*
+!.env.example
+server/.env
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Local tooling
+.vscode/
+.idea/

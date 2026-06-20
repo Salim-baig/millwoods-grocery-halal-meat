@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / <a href="shop.html">Shop</a> / <span id="crumb"></span></div>
+      <div id="pdp"></div>
+    </div>
+  </section>
+
+  <section class="section-tight">
+    <div class="wrap">
+      <h2 class="section-title">You might also need</h2>
+      <div class="grid grid-4" id="related"></div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/jsbarcode.min.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/barcode.js"></script>
+  <script>
+    window.PAGE = "shop";
+
+    const id = new URLSearchParams(location.search).get("id");
+    const p = PRODUCTS.find(x => x.id === id) || PRODUCTS[0];
+    document.getElementById("crumb").textContent = p.name;
+    document.title = p.name + " — Millwoods Halal";
+
+    const tmpl = p.butcher ? BUTCHER[p.butcher] : null;
+
+    function optionsHTML() {
+      if (!tmpl) {
+        return `
+          <div class="field">
+            <label>Quantity</label>
+            <div class="qty-row">
+              <div class="stepper">
+                <button type="button" onclick="step(-1)">−</button>
+                <input id="qty" value="1" readonly />
+                <button type="button" onclick="step(1)">+</button>
+              </div>
+              <span class="note">Sold per ${p.unit}</span>
+            </div>
+          </div>`;
+      }
+      const sel = (label, id, arr) => `
+        <div class="field">
+          <label>${label}</label>
+          <select id="${id}" onchange="recalc()">
+            ${arr.map(o => `<option>${o}</option>`).join("")}
+          </select>
+        </div>`;
+      const weightSel = `
+        <div class="field">
+          <label>Weight</label>
+          <select id="weight" onchange="recalc()">
+            ${tmpl.weights.map((w, i) => `<option value="${w.factor}">${w.label}</option>`).join("")}
+          </select>
+          <div class="note">Priced at ${UI.money(p.price)} / lb — final weight confirmed at the counter.</div>
+        </div>`;
+      return `
+        <div class="butcher-box">
+          <h3>🔪 Butcher's counter — prepared your way</h3>
+          <p style="font-size:0.86rem;color:var(--green-dark);margin-top:4px;">
+            Tell us exactly how to cut and prepare your ${UI.esc(p.name.toLowerCase())}, just like in store.</p>
+        </div>
+        <div class="grid grid-2">
+          ${sel("Cut", "cut", tmpl.cut)}
+          ${sel("Preparation", "prep", tmpl.prep)}
+        </div>
+        ${weightSel}
+        <div class="field">
+          <label>Quantity (packs)</label>
+          <div class="qty-row">
+            <div class="stepper">
+              <button type="button" onclick="step(-1)">−</button>
+              <input id="qty" value="1" readonly />
+              <button type="button" onclick="step(1)">+</button>
+            </div>
+            <span class="note">Each pack = the weight selected above</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Special instructions (optional)</label>
+          <input id="notes" placeholder="e.g. extra lean, trim fat, separate into 2 bags" />
+        </div>`;
+    }
+
+    document.getElementById("pdp").innerHTML = `
+      <div class="pdp">
+        <div class="pdp-image">${UI.thumbInner(p)}</div>
+        <div>
+          <span class="cat" style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">${UI.esc(p.category)}</span>
+          <h1>${UI.esc(p.name)}</h1>
+          <p style="color:var(--muted);margin-bottom:6px;">${UI.esc(p.desc)}</p>
+          <div style="margin-bottom:14px;">${(p.badges || []).map(b => `<span class="hero-badge" style="background:var(--green-light);color:var(--green-dark);border:none;margin-right:6px;font-size:0.78rem;">✓ ${UI.esc(b)}</span>`).join("")}</div>
+          <div class="pdp-price" id="price">${UI.money(p.price)}</div>
+          ${optionsHTML()}
+          <button class="btn btn-primary btn-block" style="padding:14px;font-size:1.05rem;" onclick="addToCart()">🛒 Add to cart</button>
+          <p style="font-size:0.82rem;color:var(--muted);margin-top:12px;text-align:center;">
+            ${HALAL[p.halal] ? HALAL[p.halal].label + " · " + HALAL[p.halal].desc : "In-store grocery item"}</p>
+
+          <div style="border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-top:16px;text-align:center;">
+            <h3 style="font-size:0.9rem;color:var(--ink);margin-bottom:8px;">🏷️ In-store barcode</h3>
+            <svg id="pdpBarcode" style="max-width:100%;"></svg>
+            <p style="font-size:0.78rem;color:var(--muted);margin-top:2px;">Shopping in store? Staff scan this at the counter.</p>
+          </div>
+        </div>
+      </div>`;
+
+    Barcode.render(document.getElementById("pdpBarcode"), Barcode.value(p));
+
+    function step(d) {
+      const q = document.getElementById("qty");
+      q.value = Math.max(1, parseInt(q.value) + d);
+      recalc();
+    }
+    window.step = step;
+
+    function unitPrice() {
+      const factor = tmpl ? parseFloat(document.getElementById("weight").value) : 1;
+      return p.price * factor;
+    }
+
+    function recalc() {
+      const qty = parseInt(document.getElementById("qty").value);
+      document.getElementById("price").textContent = UI.money(unitPrice() * qty);
+    }
+    window.recalc = recalc;
+
+    function addToCart() {
+      const qty = parseInt(document.getElementById("qty").value);
+      let options = null;
+      if (tmpl) {
+        const w = document.getElementById("weight");
+        options = {
+          cut: document.getElementById("cut").value,
+          prep: document.getElementById("prep").value,
+          weight: w.options[w.selectedIndex].text,
+          notes: document.getElementById("notes").value.trim() || null,
+        };
+      }
+      Store.addItem(p, { qty, options, unitPrice: unitPrice() });
+      UI.toast(`Added ${qty} × ${p.name} to cart`);
+    }
+    window.addToCart = addToCart;
+
+    /* related */
+    const related = PRODUCTS.filter(x => x.id !== p.id).slice(0, 4);
+    document.getElementById("related").innerHTML = related.map(r => `
+      <a class="product-card" href="product.html?id=${r.id}" style="text-decoration:none;color:inherit;">
+        <div class="product-thumb">${UI.thumbInner(r)}</div>
+        <div class="product-body">
+          <span class="cat">${UI.esc(r.category)}</span>
+          <h3>${UI.esc(r.name)}</h3>
+          <div class="product-foot" style="margin-top:10px;">
+            <span class="price">${UI.money(r.price)} <small>/ ${UI.esc(r.unit)}</small></span>
+            <span class="btn btn-primary btn-sm">View →</span>
+          </div>
+        </div>
+      </a>`).join("");
+  </script>
+</body>
+</html>

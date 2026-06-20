@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Counter POS — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .scan-box { background:var(--green-light); border:2px dashed var(--green); border-radius:var(--radius); padding:18px; margin-bottom:18px; }
+    .scan-box input { width:100%; padding:16px; font-size:1.3rem; border:1.5px solid var(--green); border-radius:10px; letter-spacing:1px; }
+    .entry { background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; display:none; }
+    .entry.show { display:block; }
+    .entry .row { display:flex; gap:12px; align-items:flex-end; }
+    .entry input { padding:12px; font-size:1.1rem; border:1.5px solid var(--line); border-radius:10px; width:140px; }
+    .bill-line { display:grid; grid-template-columns:1fr auto auto; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); align-items:center; }
+    .bill-line .nm { font-weight:600; }
+    .bill-line .meta { font-size:0.82rem; color:var(--muted); }
+    .bill-line .lt { font-weight:700; }
+    .bill-line .rm { background:none; border:none; color:#b5402f; cursor:pointer; font-size:0.8rem; }
+    .results { display:flex; flex-direction:column; gap:4px; margin-top:8px; max-height:230px; overflow:auto; }
+    .results button { text-align:left; background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 12px; cursor:pointer; font-size:0.9rem; }
+    .results button:hover { border-color:var(--green); background:var(--green-light); }
+    .summary-row { display:flex; justify-content:space-between; padding:7px 0; }
+    .summary-row.total { border-top:1px solid var(--line); margin-top:8px; padding-top:14px; font-size:1.4rem; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="admin.html">Admin</a> / Counter POS</div>
+      <h1>🛒 Counter POS</h1>
+      <p>Scan an item's barcode, enter quantity or weight, and complete the in-store sale. Sales appear in the Admin revenue dashboard.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="layout-2col">
+        <!-- left: scan + entry + manual -->
+        <div>
+          <div class="scan-box">
+            <label style="font-weight:600; display:block; margin-bottom:8px;">📷 Scan barcode (or type code + Enter)</label>
+            <input id="scan" placeholder="Scan or type barcode…" autocomplete="off" autofocus>
+          </div>
+
+          <div class="entry" id="entry"></div>
+
+          <div class="panel">
+            <h2 style="font-size:1.05rem; margin-bottom:8px;">No scanner? Search to add</h2>
+            <input id="search" placeholder="Type a product name…" autocomplete="off"
+              style="width:100%; padding:11px; border:1.5px solid var(--line); border-radius:10px;">
+            <div class="results" id="results"></div>
+          </div>
+        </div>
+
+        <!-- right: bill -->
+        <div>
+          <div class="panel" style="position:sticky; top:90px;">
+            <h2 style="font-size:1.15rem; margin-bottom:8px;">Current sale</h2>
+            <div id="bill"></div>
+            <div id="totals"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/barcode.js"></script>
+  <script>
+    window.PAGE = "pos";
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => "$" + Number(n).toFixed(2);
+
+    let bill = [];
+    let pending = null;  // product awaiting qty/weight entry
+    let lastSale = null; // most recent completed sale (for receipt reprint)
+
+    /* ---- scanning ---- */
+    const scan = $("scan");
+    function focusScan() { scan.focus(); scan.select(); }
+    scan.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const code = scan.value.trim();
+      scan.value = "";
+      if (!code) return;
+      const p = Barcode.lookup(code);
+      if (!p) { UI.toast("❌ No item for code " + code); focusScan(); return; }
+      openEntry(p);
+    });
+
+    /* ---- qty / weight entry ---- */
+    function openEntry(p) {
+      pending = p;
+      const weighed = Barcode.isWeighed(p);
+      $("entry").classList.add("show");
+      $("entry").innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div><b style="font-size:1.1rem;">${UI.esc(p.emoji || "🛒")} ${UI.esc(p.name)}</b>
+            <div class="meta" style="color:var(--muted);font-size:0.85rem;">${money(p.price)} / ${UI.esc(p.unit)} · barcode ${Barcode.value(p)}</div></div>
+        </div>
+        <div class="row">
+          <div>
+            <label style="display:block;font-weight:600;font-size:0.9rem;margin-bottom:6px;">
+              ${weighed ? "Weight (lb)" : "Quantity"}</label>
+            <input id="amount" type="number" step="${weighed ? "0.01" : "1"}" min="${weighed ? "0.01" : "1"}"
+              value="${weighed ? "1.00" : "1"}">
+          </div>
+          <button class="btn btn-primary" style="padding:12px 22px;" onclick="addEntry()">Add to sale</button>
+          <button class="btn btn-ghost" onclick="cancelEntry()">Cancel</button>
+        </div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">Press Enter to add.</p>`;
+      const amt = $("amount");
+      amt.focus(); amt.select();
+      amt.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addEntry(); } });
+    }
+    function cancelEntry() { pending = null; $("entry").classList.remove("show"); focusScan(); }
+    window.cancelEntry = cancelEntry;
+
+    function addEntry() {
+      if (!pending) return;
+      const weighed = Barcode.isWeighed(pending);
+      const amount = parseFloat($("amount").value);
+      if (isNaN(amount) || amount <= 0) { UI.toast("Enter a valid amount"); return; }
+      bill.push({
+        key: pending.id + "-" + Date.now(),
+        name: pending.name, emoji: pending.emoji || "🛒",
+        kind: weighed ? "weight" : "qty",
+        amount, unit: pending.unit, unitPrice: pending.price,
+        lineTotal: +(pending.price * amount).toFixed(2),
+      });
+      pending = null;
+      $("entry").classList.remove("show");
+      renderBill(); focusScan();
+    }
+    window.addEntry = addEntry;
+
+    /* ---- bill ---- */
+    function renderBill() {
+      if (!bill.length) {
+        $("bill").innerHTML = '<p class="section-sub" style="margin:6px 0;">No items yet — scan to begin.</p>';
+        $("totals").innerHTML = "";
+        return;
+      }
+      $("bill").innerHTML = bill.map((l) => `
+        <div class="bill-line">
+          <div>
+            <div class="nm">${UI.esc(l.emoji)} ${UI.esc(l.name)}</div>
+            <div class="meta">${l.kind === "weight" ? l.amount.toFixed(2) + " lb" : l.amount + " ×"} @ ${money(l.unitPrice)}/${UI.esc(l.unit)}</div>
+          </div>
+          <div class="lt">${money(l.lineTotal)}</div>
+          <button class="rm" onclick="removeLine('${l.key}')">remove</button>
+        </div>`).join("");
+
+      const sub = bill.reduce((s, l) => s + l.lineTotal, 0);
+      const gst = +(sub * 0.05).toFixed(2);
+      const total = +(sub + gst).toFixed(2);
+      $("totals").innerHTML = `
+        <div class="summary-row"><span style="color:var(--muted)">Subtotal</span><span>${money(sub)}</span></div>
+        <div class="summary-row"><span style="color:var(--muted)">GST (5%)</span><span>${money(gst)}</span></div>
+        <div class="summary-row total"><span>Total</span><span>${money(total)}</span></div>
+        <button class="btn btn-primary btn-block" style="padding:14px;margin-top:10px;" onclick="completeSale()">Complete sale · ${money(total)}</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="clearSale()">Clear</button>`;
+    }
+    function removeLine(key) { bill = bill.filter((l) => l.key !== key); renderBill(); focusScan(); }
+    function clearSale() { bill = []; renderBill(); focusScan(); }
+    window.removeLine = removeLine; window.clearSale = clearSale;
+
+    function completeSale() {
+      if (!bill.length) return;
+      const ts = Date.now();
+      const sub = +(bill.reduce((s, l) => s + l.lineTotal, 0)).toFixed(2);
+      const gst = +(sub * 0.05).toFixed(2);
+      const total = +(sub + gst).toFixed(2);
+      const items = bill.reduce((s, l) => s + (l.kind === "qty" ? l.amount : 1), 0);
+      const ref = "MWH-" + Math.floor(100000 + Math.random() * 900000);
+      Store.recordOrder({ ref, ts, total, items, mode: "in-store", method: "Counter" });
+      lastSale = { ref, ts, lines: bill.slice(), sub, gst, total, items, method: "Counter" };
+      bill = [];
+      $("bill").innerHTML = `
+        <div class="empty" style="padding:24px 10px;">
+          <div class="ic" style="font-size:2.4rem;">✅</div>
+          <h3>Sale complete</h3>
+          <p>Ref <b>${ref}</b> · ${money(total)}</p>
+          <p style="font-size:0.85rem;color:var(--muted);">Recorded to today's revenue.</p>
+        </div>`;
+      $("totals").innerHTML = `
+        <button class="btn btn-primary btn-block" style="padding:14px;" onclick="printReceipt()">🖨️ Print receipt (80 mm)</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="clearSale()">New sale</button>`;
+      focusScan();
+    }
+    window.completeSale = completeSale;
+
+    /* ---- 80 mm thermal receipt ---- */
+    function buildReceiptHTML(s) {
+      const dt = new Date(s.ts).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      const lines = s.lines.map((l) => `
+        <tr><td colspan="2" class="b">${l.emoji ? UI.esc(l.emoji) + " " : ""}${UI.esc(l.name)}</td></tr>
+        <tr><td class="sm">${l.kind === "weight" ? l.amount.toFixed(2) + " lb" : l.amount + " ×"} @ ${money(l.unitPrice)}/${UI.esc(l.unit)}</td>
+            <td class="r b">${money(l.lineTotal)}</td></tr>`).join("");
+      return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+        @page { size: 80mm auto; margin: 0; }
+        * { font-family: 'Courier New', Courier, monospace; -webkit-print-color-adjust: exact; }
+        body { width: 72mm; margin: 0 auto; padding: 4mm 2mm; color: #000; font-size: 12px; }
+        .c { text-align: center; } .r { text-align: right; } .b { font-weight: bold; } .sm { font-size: 10px; }
+        h1 { font-size: 15px; margin: 0; } hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; vertical-align: top; }
+        .ln { display: flex; justify-content: space-between; padding: 1px 0; }
+        .ln.tot { font-size: 14px; }
+      </style></head><body>
+        <div class="c">
+          <h1>${STORE.name}</h1>
+          <div class="sm">${STORE.address}</div>
+          <div class="sm">${STORE.phone}</div>
+        </div>
+        <hr>
+        <div class="sm c">${dt}</div>
+        <div class="sm c">Receipt: <span class="b">${s.ref}</span></div>
+        <hr>
+        <table>${lines}</table>
+        <hr>
+        <div class="ln"><span>Subtotal</span><span>${money(s.sub)}</span></div>
+        <div class="ln"><span>GST (5%)</span><span>${money(s.gst)}</span></div>
+        <div class="ln tot b"><span>TOTAL</span><span>${money(s.total)}</span></div>
+        <div class="ln"><span>Paid</span><span>${s.method}</span></div>
+        <hr>
+        <div class="c sm">Items: ${s.items}<br>Shukran! Thank you for shopping halal.<br>${STORE.short}</div>
+      </body></html>`;
+    }
+
+    function printReceipt() {
+      if (!lastSale) return;
+      let f = document.getElementById("receiptFrame");
+      if (!f) {
+        f = document.createElement("iframe");
+        f.id = "receiptFrame";
+        f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+        document.body.appendChild(f);
+      }
+      const doc = f.contentWindow.document;
+      doc.open(); doc.write(buildReceiptHTML(lastSale)); doc.close();
+      setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 250);
+    }
+    window.printReceipt = printReceipt;
+
+    /* ---- manual search ---- */
+    $("search").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) { $("results").innerHTML = ""; return; }
+      const hits = PRODUCTS.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
+      $("results").innerHTML = hits.map((p) =>
+        `<button onclick='pickManual(${JSON.stringify(p.id)})'>${UI.esc(p.emoji || "🛒")} ${UI.esc(p.name)} — ${money(p.price)}/${UI.esc(p.unit)}</button>`).join("")
+        || '<p class="section-sub" style="margin:6px 0;">No matches.</p>';
+    });
+    function pickManual(id) {
+      const p = PRODUCTS.find((x) => x.id === id);
+      if (p) { $("search").value = ""; $("results").innerHTML = ""; openEntry(p); }
+    }
+    window.pickManual = pickManual;
+
+    renderBill();
+    focusScan();
+  </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Barcode Labels — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:16px 20px; max-width:1180px; margin:0 auto; }
+    .labels { max-width:1180px; margin:0 auto; padding:0 20px 40px; }
+
+    /* on-screen preview */
+    .labels.a4 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .labels.thermal { display:flex; flex-direction:column; align-items:center; gap:10px; }
+
+    .label { border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center; break-inside:avoid; background:#fff; }
+    .labels.thermal .label { width:72mm; border-radius:0; }
+    .label .store { font-size:0.62rem; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+    .label .nm { font-weight:700; font-size:0.9rem; line-height:1.15; margin-top:1px; }
+    .label .pr { color:#000; font-weight:700; font-size:0.95rem; margin:2px 0 4px; }
+    .label svg { width:100%; height:auto; }
+
+    /* dynamic @page + print rules are injected by setMode() into #printCss */
+  </style>
+  <style id="printCss"></style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <a class="btn btn-ghost btn-sm" href="admin.html">← Back to Admin</a>
+    <span style="display:inline-flex; gap:4px; align-items:center;">
+      <button class="chip active" id="mThermal" onclick="setMode('thermal')">80 mm thermal</button>
+      <button class="chip" id="mA4" onclick="setMode('a4')">A4 sheet</button>
+    </span>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print</button>
+    <span id="scopeNote" style="color:var(--muted); font-size:0.9rem;"></span>
+  </div>
+  <div class="labels thermal" id="labels"></div>
+
+  <script src="assets/js/jsbarcode.min.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/barcode.js"></script>
+  <script>
+    // Optional single product: labels.html?id=<productId>
+    const onlyId = new URLSearchParams(location.search).get("id");
+    const list = onlyId ? PRODUCTS.filter((p) => p.id === onlyId) : PRODUCTS;
+    document.getElementById("scopeNote").textContent =
+      onlyId ? `1 label — ${list[0] ? list[0].name : "?"}` : `${list.length} labels — one scannable barcode per product.`;
+
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function renderLabels() {
+      const wrap = document.getElementById("labels");
+      wrap.innerHTML = list.map((p, i) => `
+        <div class="label">
+          <div class="store">${esc(STORE.short)}</div>
+          <div class="nm">${esc(p.name)}</div>
+          <div class="pr">$${Number(p.price).toFixed(2)} / ${esc(p.unit)}</div>
+          <svg class="bc" data-i="${i}"></svg>
+        </div>`).join("");
+      document.querySelectorAll("svg.bc").forEach((svg) => {
+        Barcode.render(svg, Barcode.value(list[+svg.dataset.i]));
+      });
+    }
+
+    function setMode(mode) {
+      const wrap = document.getElementById("labels");
+      wrap.className = "labels " + mode;
+      document.getElementById("mThermal").classList.toggle("active", mode === "thermal");
+      document.getElementById("mA4").classList.toggle("active", mode === "a4");
+      document.getElementById("printCss").textContent = mode === "thermal" ? `
+        @media print {
+          @page { size: 80mm auto; margin: 1.5mm; }
+          .no-print { display:none !important; }
+          body { background:#fff; }
+          .labels { display:block; padding:0; margin:0; }
+          .label { width:auto; border:none; border-radius:0; padding:3mm 1mm; page-break-after:always; }
+          .label svg { width:72mm; }
+        }` : `
+        @media print {
+          @page { size: A4; margin: 10mm; }
+          .no-print { display:none !important; }
+          body { background:#fff; }
+          .labels { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:0; }
+          .label { border:1px solid #ccc; }
+        }`;
+    }
+
+    renderLabels();
+    setMode("thermal");      // default to 80 mm thermal
+  </script>
+</body>
+</html>

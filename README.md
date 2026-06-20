@@ -1,0 +1,104 @@
+# Millwoods Grocery & Halal Meat — Website
+
+A self-contained prototype website for Millwoods Grocery & Halal Meat (Mill Woods, Edmonton, AB).
+Pure HTML/CSS/vanilla JavaScript — no build step, no dependencies. Cart state persists in the
+browser via `localStorage`. **Checkout is simulated** (no real payment is taken).
+
+## Run it
+
+Any static server works. The simplest:
+
+```bash
+cd "Millwoods Halal Grocery and Meat"
+python3 -m http.server 9000
+# then open http://localhost:9000
+```
+
+Or just open `index.html` directly in a browser.
+
+## Pages
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Home + **postal-code delivery validator**, featured products, halal legend, recipe teaser |
+| `shop.html` | Product catalogue with category filters + halal badges |
+| `product.html` | **Custom butcher checkout** — cut / prep / weight dropdowns, live price |
+| `cart.html` | Cart + **delivery/pickup toggle**, **2-hour time-slot scheduler**, simulated checkout |
+| `recipes.html` | **Recipe-to-cart bundles** — one click adds all ingredients |
+| `community.html` | **Community board** + prayer times + submit-announcement form |
+| `standards.html` | **Supplier transparency** + halal certification + badge explainer |
+| `admin.html` | **Staff admin** — revenue dashboard (today/week/month/year/custom), product add/edit/hide, and payment settings (incl. Stripe key) |
+| `pos.html` | **Counter POS** — scan barcode, enter quantity/weight, build a bill, complete in-store sale (recorded to revenue), **print an 80 mm thermal receipt** |
+| `labels.html` | **Barcode labels** — prints on **80 mm thermal** (one label per item, default) or A4 sheet; `?id=<productId>` prints a single label. Linked from Admin → Print barcodes, and per-row "Label" |
+
+## Feature → file map (your original brief)
+
+1. **Local delivery & pickup logistics**
+   - Postal-code validator (homepage) → `index.html` + `Store.checkZone()` in `assets/js/store.js`
+   - Custom butcher checkout → `product.html` (dropdowns from `BUTCHER` in `data.js`)
+   - Scheduled 2-hour time slots → `cart.html` (`renderSlots()`)
+   - Curbside pickup toggle → `cart.html` (delivery/pickup toggle)
+2. **Hyper-local marketing**
+   - Community board + prayer timetables → `community.html`
+   - Recipe-to-cart bundles → `recipes.html` (and teaser on home)
+3. **Trust verification**
+   - Supplier transparency / "Our Standards" → `standards.html`
+   - Color-coded halal labels (green = Zabiha, blue = machine halal) → `UI.badge()` everywhere
+
+## Project structure
+
+```
+assets/
+  css/style.css     all styling
+  js/data.js        products, recipes, suppliers, prayer times, delivery zones (mock data)
+  js/store.js       cart + delivery-zone state (localStorage)
+  js/ui.js          shared header/footer, halal badges, toasts
+*.html              pages
+```
+
+## Notes for going live (next steps)
+
+- The "zip code" was implemented as a **Canadian postal code** validator (Mill Woods FSAs:
+  T6K, T6L, T6T, etc.) since that's what real Edmonton customers enter. Edit the `DELIVERY.zones`
+  map in `data.js` to adjust your delivery area.
+- **Delivery pricing:** flat **$5 within 5 km** of the store (9232 34 Ave NW, T6N 1C9),
+  $8 for 5–10 km, and free over $100. Distance is **computed with the haversine formula**
+  (`Store.checkZone` / `Store.deliveryFee` in `assets/js/store.js`) from the store's
+  coordinates to each delivery FSA's centroid in `DELIVERY.zones`. For per-address precision,
+  geocode the customer's full postal code and feed the lat/lng into the same haversine call.
+- **Product images** live in `assets/img/<product-id>.jpg`. These are **freely-licensed stock
+  photos** (sourced via Openverse / Wikimedia Commons) chosen to show **raw/fresh** product —
+  raw meat, raw poultry, and uncooked ingredients — not prepared dishes. Replace each with the
+  store's own product photos (same filename, no code changes needed). If an image is missing, the
+  page falls back to the product emoji automatically.
+- **Admin page** (`admin.html`, linked as "Staff Admin" in the footer) is a client-side back-office:
+  - **Revenue** — today / this week / this month / this year / custom range, with KPI cards, a bar
+    chart, and recent orders. Real orders are recorded on checkout (`Store.recordOrder`); a
+    "Load sample data" button seeds ~1 year of demo orders so the charts aren't empty.
+  - **Products** — add/edit/hide/delete items; edits persist in `localStorage` and the storefront
+    reflects them on next load (`Store.applyCatalogEdits` mutates the global product list).
+  - **Settings** — pick the payment provider and enter the **Stripe key** (and PayPal/Square keys);
+    saved to `localStorage` and merged into `payments.js`. For production, put **secret** keys in
+    `server/.env`, not the browser (the page warns about this).
+  - It's intentionally unauthenticated for the prototype — add real staff auth before launch.
+- **In-store barcodes & POS** (`assets/js/barcode.js`): every product has a stable scannable
+  **Code128** barcode (`Barcode.value` — derived from the product id, or an explicit UPC set in
+  Admin). Barcodes show on each product page, print as a label sheet (`labels.html`), and drive the
+  **Counter POS** (`pos.html`): scan → enter quantity (unit items) or weight (per-lb meat) → bill →
+  complete sale, which records an `in-store` / `Counter` order into the revenue dashboard. Barcodes
+  render via JsBarcode (CDN); the POS lookup works offline. A handheld scanner just types the code
+  into the focused field + Enter — no driver needed.
+- **80 mm thermal printing:** `labels.html` defaults to an 80 mm roll layout (one label per item,
+  `@page { size: 80mm auto }`) for sticking on stock — with an A4 fallback and `?id=` single-label
+  reprint. After a POS sale, **Print receipt (80 mm)** renders an isolated thermal receipt (store
+  header, line items, subtotal/GST/total, ref) into a hidden iframe and prints it — sized to a
+  72 mm print body for 80 mm paper.
+- Replace mock data in `data.js` with a real inventory feed/CMS.
+- **Real payments are scaffolded** — see [PAYMENTS.md](PAYMENTS.md). Checkout defaults to a
+  simulated (`demo`) flow; set `PAYMENTS.provider` + credentials in `assets/js/payments.js` to go
+  live with PayPal (no backend), or Stripe / Square (using the backend in [`server/`](server/)).
+- The real in-store catalogue items (ghee, dates, cake rusk, bazoori, mango, carrom board, etc.)
+  currently show emoji placeholders — drop the store's photos into `assets/img/<product-id>.jpg`
+  and they appear automatically. Two prices were not provided and are placeholders to confirm:
+  **Pakistani Mango ($24.99)** and **Carrom Board ($99.99)**.
+- Upload real certificate PDFs and link them from `standards.html`.

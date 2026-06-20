@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cart & Checkout — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Cart & Checkout</div>
+      <h1>Your cart & delivery</h1>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap" id="cartRoot"></div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/payments.js"></script>
+  <script>
+    window.PAGE = "cart";
+
+    // checkout state
+    const state = {
+      mode: "delivery",   // delivery | pickup
+      slot: null,         // {day, time}
+    };
+
+    function render() {
+      const cart = Store.getCart();
+      const root = document.getElementById("cartRoot");
+
+      if (!cart.length) {
+        root.innerHTML = `
+          <div class="empty">
+            <div class="ic">🛒</div>
+            <h2>Your cart is empty</h2>
+            <p>Add some fresh Zabiha meat and groceries to get started.</p>
+            <a class="btn btn-primary" href="shop.html" style="margin-top:16px;">Start shopping →</a>
+          </div>`;
+        return;
+      }
+
+      root.innerHTML = `
+        <div class="layout-2col">
+          <div>
+            <div class="panel" style="margin-bottom:20px;">
+              <h2>Items (${Store.cartCount()})</h2>
+              <div id="items"></div>
+            </div>
+            ${fulfilmentHTML()}
+          </div>
+          <div>
+            ${summaryHTML()}
+          </div>
+        </div>`;
+
+      renderItems();
+      wireFulfilment();
+      renderSummary();
+    }
+
+    /* ---------- items ---------- */
+    function renderItems() {
+      const cart = Store.getCart();
+      document.getElementById("items").innerHTML = cart.map(i => {
+        const opts = i.options
+          ? `<div class="ci-opts">${UI.esc(i.options.cut)} · ${UI.esc(i.options.prep)} · ${UI.esc(i.options.weight)}${i.options.notes ? ` · “${UI.esc(i.options.notes)}”` : ""}</div>`
+          : `<div class="ci-opts">per ${UI.esc(i.unit)}</div>`;
+        return `
+          <div class="cart-item">
+            <div class="ci-thumb">${UI.esc(i.emoji)}</div>
+            <div>
+              <div class="ci-name">${UI.esc(i.name)} ${UI.badge(i.halal)}</div>
+              ${opts}
+              <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                <div class="stepper">
+                  <button onclick="chQty('${i.key}',-1)">−</button>
+                  <input value="${i.qty}" readonly />
+                  <button onclick="chQty('${i.key}',1)">+</button>
+                </div>
+                <button class="ci-remove" onclick="rm('${i.key}')">Remove</button>
+              </div>
+            </div>
+            <div class="ci-price">${UI.money(i.lineTotal)}</div>
+          </div>`;
+      }).join("");
+    }
+    window.chQty = (k, d) => {
+      const item = Store.getCart().find(i => i.key === k);
+      Store.updateQty(k, item.qty + d);
+      render();
+    };
+    window.rm = (k) => { Store.removeItem(k); render(); };
+
+    /* ---------- fulfilment (toggle + scheduler) ---------- */
+    function fulfilmentHTML() {
+      const zone = Store.getZone();
+      const zoneLine = zone && zone.inZone
+        ? `<div class="delivery-banner" style="margin-bottom:16px;">✅ Delivering to <b>${zone.zone.area}</b> (${zone.formatted}) · ~${zone.zone.km} km · ${zone.zone.eta}. <a href="index.html#zone">Change</a></div>`
+        : `<div class="delivery-banner warn" style="margin-bottom:16px;">📍 We need your postal code to deliver. <a href="index.html#zone">Check your area →</a></div>`;
+
+      return `
+        <div class="panel">
+          <h2>How would you like to get it?</h2>
+          <div class="toggle-group">
+            <div class="toggle-opt ${state.mode==='delivery'?'active':''}" data-mode="delivery">
+              <div class="ic">🚚</div><b>Local Delivery</b><span>To your door in Mill Woods</span>
+            </div>
+            <div class="toggle-opt ${state.mode==='pickup'?'active':''}" data-mode="pickup">
+              <div class="ic">🏪</div><b>Curbside Pickup</b><span>Click & Collect — no fee</span>
+            </div>
+          </div>
+          <div id="modeArea">
+            ${state.mode === 'delivery' ? zoneLine : ''}
+            <div class="day-label">Pick a 2-hour ${state.mode==='delivery'?'delivery':'pickup'} window</div>
+            <div id="slots"></div>
+          </div>
+        </div>`;
+    }
+
+    function wireFulfilment() {
+      document.querySelectorAll(".toggle-opt").forEach(el => {
+        el.addEventListener("click", () => {
+          state.mode = el.dataset.mode;
+          state.slot = null;
+          render();
+        });
+      });
+      renderSlots();
+    }
+
+    /* generate next 4 days of 2-hour windows */
+    function renderSlots() {
+      const slotsEl = document.getElementById("slots");
+      if (!slotsEl) return;
+      const days = nextDays(4);
+      const windows = ["10:00 AM – 12:00 PM", "12:00 PM – 2:00 PM", "2:00 PM – 4:00 PM", "4:00 PM – 6:00 PM", "6:00 PM – 8:00 PM"];
+      slotsEl.innerHTML = days.map(d => `
+        <div class="day-label">${d.label}</div>
+        <div class="slot-grid">
+          ${windows.map((w, i) => {
+            // disable a couple of early slots on "today" to feel realistic
+            const disabled = d.isToday && i < 2;
+            const sel = state.slot && state.slot.day === d.label && state.slot.time === w;
+            return `<div class="slot ${disabled?'disabled':''} ${sel?'active':''}"
+                      ${disabled?'':`onclick="pickSlot('${d.label}','${w}')"`}>${w}</div>`;
+          }).join("")}
+        </div>`).join("");
+    }
+    window.pickSlot = (day, time) => { state.slot = { day, time }; render(); };
+
+    function nextDays(n) {
+      const names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const out = [];
+      const base = new Date(2026, 5, 19); // demo "today" = Fri Jun 19 2026
+      for (let i = 0; i < n; i++) {
+        const d = new Date(base); d.setDate(base.getDate() + i);
+        out.push({
+          label: `${names[d.getDay()]}, ${d.toLocaleDateString('en-CA',{month:'short',day:'numeric'})}`,
+          isToday: i === 0,
+        });
+      }
+      return out;
+    }
+
+    /* ---------- summary + simulated checkout ---------- */
+    function summaryHTML() {
+      return `<div class="panel" style="position:sticky;top:90px;"><h2>Order summary</h2><div id="summary"></div></div>`;
+    }
+
+    function renderSummary() {
+      const sub = Store.cartSubtotal();
+      const isDelivery = state.mode === "delivery";
+      const zone = Store.getZone();
+      const freeDel = sub >= DELIVERY.freeThreshold;
+      const fee = !isDelivery ? 0 : Store.deliveryFee(zone && zone.zone, sub);
+      const gst = +(sub * 0.05).toFixed(2);
+      const total = +(sub + fee + gst).toFixed(2);
+
+      const canDeliver = !isDelivery || (zone && zone.inZone);
+      const ready = state.slot && canDeliver;
+
+      let blocker = "";
+      if (isDelivery && !(zone && zone.inZone)) blocker = "Confirm your postal code to enable delivery.";
+      else if (!state.slot) blocker = `Choose a ${isDelivery?'delivery':'pickup'} window above.`;
+
+      document.getElementById("summary").innerHTML = `
+        <div class="summary-row"><span class="muted">Subtotal</span><span>${UI.money(sub)}</span></div>
+        <div class="summary-row"><span class="muted">${isDelivery?'Delivery':'Pickup'}</span>
+          <span>${isDelivery ? (fee===0?'<b style="color:var(--green)">FREE</b>':UI.money(fee)) : 'FREE'}</span></div>
+        ${isDelivery && !freeDel ? `<div class="summary-row"><span class="muted" style="font-size:0.8rem;">Spend ${UI.money(DELIVERY.freeThreshold-sub)} more for free delivery</span><span></span></div>`:''}
+        <div class="summary-row"><span class="muted">GST (5%)</span><span>${UI.money(gst)}</span></div>
+        <div class="summary-row total"><span>Total</span><span>${UI.money(total)}</span></div>
+
+        <div style="margin:14px 0;padding:12px;background:var(--bg);border-radius:10px;font-size:0.88rem;">
+          <b>${isDelivery?'🚚 Delivery':'🏪 Pickup'}:</b>
+          ${state.slot ? `${state.slot.day}, ${state.slot.time}` : '<span style="color:var(--muted)">no window selected</span>'}
+        </div>
+
+        <div id="checkoutArea"></div>`;
+
+      // Hand off to the payment layer (demo by default; see payments.js)
+      Payments.render(document.getElementById("checkoutArea"), {
+        ready,
+        blocker,
+        order: {
+          items: Store.cartCount(),
+          totalNum: total,
+          total: UI.money(total),
+          mode: state.mode,
+          slot: state.slot,
+        },
+        onSuccess: placeOrder,
+      });
+    }
+
+    function placeOrder(paid) {
+      paid = paid || {};
+      const sub = Store.cartSubtotal();
+      const zone = Store.getZone();
+      const fee = state.mode === "delivery" ? Store.deliveryFee(zone && zone.zone, sub) : 0;
+      const total = sub + fee + sub * 0.05;
+      const order = {
+        ref: paid.ref || ("MWH-" + Math.floor(100000 + Math.random()*900000)),
+        mode: state.mode,
+        slot: state.slot,
+        total: UI.money(paid.totalNum != null ? paid.totalNum : total),
+        items: Store.cartCount(),
+        method: paid.method || "Simulated",
+      };
+      // record for the admin revenue dashboard
+      Store.recordOrder({
+        ref: order.ref, ts: Date.now(),
+        total: paid.totalNum != null ? paid.totalNum : total,
+        items: order.items, mode: order.mode, method: order.method,
+      });
+      Store.clearCart();
+      document.getElementById("cartRoot").innerHTML = `
+        <div class="empty">
+          <div class="ic">✅</div>
+          <h2>Order confirmed!</h2>
+          <p>Reference <b>${order.ref}</b> · ${order.items} items · ${order.total}</p>
+          <p style="font-size:0.85rem;color:var(--muted);">Payment: ${order.method}</p>
+          <p style="margin-top:6px;">${order.mode==='delivery'?'🚚 Delivery':'🏪 Pickup'}: <b>${order.slot.day}, ${order.slot.time}</b></p>
+          <p style="margin-top:10px;max-width:460px;margin-left:auto;margin-right:auto;">
+            Your fresh Zabiha order will be cut and prepared the same day, kept cold, and ${order.mode==='delivery'?'delivered to your door':'ready for curbside pickup'} in your chosen window.</p>
+          <a class="btn btn-primary" href="shop.html" style="margin-top:18px;">Continue shopping →</a>
+        </div>`;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    window.placeOrder = placeOrder;
+
+    render();
+  </script>
+</body>
+</html>

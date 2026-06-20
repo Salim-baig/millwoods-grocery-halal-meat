@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .admin-tabs { display:flex; gap:6px; border-bottom:1px solid var(--line); margin-bottom:24px; flex-wrap:wrap; }
+    .admin-tabs button { background:none; border:none; padding:12px 18px; font-size:0.98rem; font-weight:600;
+      color:var(--muted); cursor:pointer; border-bottom:3px solid transparent; }
+    .admin-tabs button.active { color:var(--green-dark); border-bottom-color:var(--green); }
+    .tab { display:none; }
+    .tab.active { display:block; }
+
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .kpi { background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); }
+    .kpi .label { font-size:0.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .kpi .value { font-size:1.7rem; font-weight:700; margin-top:4px; }
+
+    .period-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
+    .custom-range { display:none; gap:8px; align-items:center; }
+    .custom-range.show { display:flex; }
+    .custom-range input { padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; }
+
+    .chart { display:flex; align-items:flex-end; gap:3px; height:240px; padding:0 4px 28px; border-bottom:1px solid var(--line);
+      background:linear-gradient(to top, transparent, transparent); position:relative; }
+    .chart .bar { flex:1; background:var(--green); border-radius:4px 4px 0 0; min-height:2px; position:relative; transition:.12s; }
+    .chart .bar:hover { background:var(--green-dark); }
+    .chart .bar .lbl { position:absolute; bottom:-24px; left:50%; transform:translateX(-50%) rotate(-35deg);
+      transform-origin:top center; font-size:10px; color:var(--muted); white-space:nowrap; }
+
+    #recentOrders, #tab-products .panel { overflow-x:auto; }
+    table.admin { width:100%; border-collapse:collapse; font-size:0.9rem; }
+    table.admin th, table.admin td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
+    table.admin th { font-size:0.78rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+    table.admin tr.hidden-row td { opacity:.45; }
+    .tag { font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:10px; background:var(--bg); color:var(--muted); }
+    .tag.added { background:var(--green-light); color:var(--green-dark); }
+    .link-btn { background:none; border:none; color:var(--green-dark); cursor:pointer; font-weight:600; font-size:0.85rem; padding:2px 4px; }
+    .link-btn.danger { color:#b5402f; }
+
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; place-items:center; z-index:300; padding:20px; }
+    .modal-bg.show { display:grid; }
+    .modal { background:#fff; border-radius:var(--radius); padding:24px; width:100%; max-width:520px; max-height:90vh; overflow:auto; box-shadow:var(--shadow-lg); }
+    .modal h3 { margin-bottom:16px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-grid .full { grid-column:1 / -1; }
+    .warn-box { background:#fdf0ec; border:1px solid #e0a99b; color:#a3402f; border-radius:10px; padding:12px 16px; font-size:0.86rem; margin-bottom:18px; }
+    @media (max-width:700px){ .kpis{grid-template-columns:1fr 1fr;} .form-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Admin</div>
+      <h1>Staff Admin</h1>
+      <p>Manage products, payment settings, and view revenue. Data is stored in this browser (prototype).</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="admin-tabs">
+        <button data-tab="dashboard" class="active">📊 Revenue</button>
+        <button data-tab="products">📦 Products</button>
+        <button data-tab="settings">⚙️ Settings</button>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="tab active" id="tab-dashboard">
+        <div class="period-bar">
+          <button class="chip active" data-period="today">Today</button>
+          <button class="chip" data-period="week">This Week</button>
+          <button class="chip" data-period="month">This Month</button>
+          <button class="chip" data-period="year">This Year</button>
+          <button class="chip" data-period="custom">Custom</button>
+          <span class="custom-range" id="customRange">
+            <input type="date" id="cStart"> <span>to</span> <input type="date" id="cEnd">
+            <button class="btn btn-primary btn-sm" onclick="applyCustom()">Apply</button>
+          </span>
+          <span style="flex:1"></span>
+          <button class="btn btn-ghost btn-sm" onclick="seedData()">Load sample data</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearData()">Clear orders</button>
+        </div>
+
+        <div class="kpis" id="kpis"></div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <h2 id="chartTitle" style="font-size:1.1rem; margin-bottom:18px;">Revenue</h2>
+          <div id="chart"></div>
+        </div>
+
+        <div class="panel">
+          <h2 style="font-size:1.1rem; margin-bottom:12px;">Recent orders</h2>
+          <div id="recentOrders"></div>
+        </div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div class="tab" id="tab-products">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <p class="section-sub" style="margin:0;">Edit prices/details, hide items, or add new products. Changes appear on the storefront immediately.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a class="btn btn-ghost btn-sm" href="pos.html">🛒 Counter POS</a>
+            <a class="btn btn-ghost btn-sm" href="labels.html">🏷️ Print barcodes</a>
+            <button class="btn btn-ghost btn-sm" onclick="resetCatalog()">Reset all</button>
+            <button class="btn btn-primary" onclick="openProductModal()">+ Add product</button>
+          </div>
+        </div>
+        <div class="panel" style="overflow-x:auto;">
+          <table class="admin" id="productTable"></table>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="tab" id="tab-settings">
+        <div class="warn-box">
+          ⚠️ Prototype note: keys entered here are stored in this browser only. For a live site, your
+          <b>Stripe/Square secret keys must live on the server</b> (<code>server/.env</code>) — never in the browser.
+          The publishable key / client ID below is what the site uses. See <a href="PAYMENTS.md">PAYMENTS.md</a>.
+        </div>
+        <div class="panel" style="max-width:640px;">
+          <h2 style="font-size:1.15rem; margin-bottom:16px;">Payment settings</h2>
+          <div class="field">
+            <label>Active payment provider</label>
+            <select id="setProvider">
+              <option value="demo">Demo (simulated checkout)</option>
+              <option value="paypal">PayPal (no backend)</option>
+              <option value="stripe">Stripe (needs backend)</option>
+              <option value="square">Square (needs backend)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>PayPal Client ID</label>
+            <input id="setPaypal" placeholder="AYxxxx…">
+          </div>
+          <div class="field">
+            <label>Stripe Publishable Key</label>
+            <input id="setStripePub" placeholder="pk_live_… / pk_test_…">
+          </div>
+          <div class="field">
+            <label>Stripe Checkout endpoint (your backend)</label>
+            <input id="setStripeUrl" placeholder="http://localhost:4242/api/stripe/create-checkout-session">
+          </div>
+          <div class="field">
+            <label>Square Application ID</label>
+            <input id="setSquareApp" placeholder="sq0idp-… / sandbox-sq0idb-…">
+          </div>
+          <div class="field">
+            <label>Square Location ID</label>
+            <input id="setSquareLoc" placeholder="L…">
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+          <p style="font-size:0.82rem; color:var(--muted); margin-top:10px;" id="settingsStatus"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Product modal -->
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h3 id="modalTitle">Add product</h3>
+      <input type="hidden" id="pEditId">
+      <div class="form-grid">
+        <div class="full"><div class="field"><label>Name</label><input id="pName"></div></div>
+        <div class="field"><label>Category</label><input id="pCategory" list="catList"></div>
+        <div class="field"><label>Price (CA$)</label><input id="pPrice" type="number" step="0.01" min="0"></div>
+        <div class="field"><label>Unit</label><input id="pUnit" placeholder="lb, jar, box…"></div>
+        <div class="field"><label>Emoji</label><input id="pEmoji" placeholder="🧈"></div>
+        <div class="field">
+          <label>Halal label</label>
+          <select id="pHalal">
+            <option value="">None</option>
+            <option value="zabiha">Zabiha (green)</option>
+            <option value="machine">Machine halal (blue)</option>
+            <option value="grocery">Halal grocery (green)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Butcher options</label>
+          <select id="pButcher">
+            <option value="">None</option>
+            <option value="redmeat">Red meat (cut/prep/weight)</option>
+            <option value="poultry">Poultry (cut/prep/weight)</option>
+          </select>
+        </div>
+        <div class="full"><div class="field"><label>Barcode (optional — auto-generated if blank)</label><input id="pBarcode" placeholder="e.g. real UPC, or leave blank"></div></div>
+        <div class="full"><div class="field"><label>Image URL (optional)</label><input id="pImage" placeholder="https://… or assets/img/&lt;id&gt;.jpg"></div></div>
+        <div class="full"><div class="field"><label>Description</label><input id="pDesc"></div></div>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+        <button class="btn btn-ghost" onclick="closeProductModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+  <datalist id="catList"></datalist>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/payments.js"></script>
+  <script src="assets/js/barcode.js"></script>
+  <script>
+    window.PAGE = "admin";
+    const $ = (id) => document.getElementById(id);
+
+    /* ---------------- Tabs ---------------- */
+    document.querySelectorAll(".admin-tabs button").forEach((b) => {
+      b.onclick = () => showTab(b.dataset.tab);
+    });
+    function showTab(name) {
+      document.querySelectorAll(".admin-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
+      location.hash = name;
+    }
+
+    /* ================= DASHBOARD ================= */
+    let period = "today";
+    document.querySelectorAll("[data-period]").forEach((b) => {
+      b.onclick = () => {
+        period = b.dataset.period;
+        document.querySelectorAll("[data-period]").forEach((x) => x.classList.toggle("active", x === b));
+        $("customRange").classList.toggle("show", period === "custom");
+        if (period !== "custom") renderDashboard();
+      };
+    });
+
+    function periodRange() {
+      const now = new Date(), end = Date.now();
+      let start;
+      if (period === "today") { const d = new Date(); d.setHours(0,0,0,0); start = d.getTime(); }
+      else if (period === "week") { const d = new Date(end - 6*86400000); d.setHours(0,0,0,0); start = d.getTime(); }
+      else if (period === "month") start = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      else if (period === "year") start = new Date(now.getFullYear(), 0, 1).getTime();
+      else if (period === "custom") {
+        if (!$("cStart").value || !$("cEnd").value) return null;
+        return [ new Date($("cStart").value + "T00:00:00").getTime(),
+                 new Date($("cEnd").value + "T23:59:59").getTime() ];
+      }
+      return [start, end];
+    }
+    function applyCustom() { if (periodRange()) renderDashboard(); }
+    window.applyCustom = applyCustom;
+
+    function money(n) { return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    function buildBuckets(orders, start, end) {
+      const DAY = 86400000, span = end - start;
+      const unit = span <= 1.5*DAY ? "hour" : span <= 62*DAY ? "day" : "month";
+      const buckets = [], idx = {};
+      const add = (k, l) => { idx[k] = buckets.length; buckets.push({ key:k, label:l, value:0, count:0 }); };
+      if (unit === "hour") {
+        const d0 = new Date(start); d0.setMinutes(0,0,0);
+        for (let t = d0.getTime(); t <= end; t += 3600000) { const d = new Date(t);
+          add("h"+d.getDate()+"-"+d.getHours(), d.toLocaleTimeString([], { hour:"numeric" })); }
+      } else if (unit === "day") {
+        const d0 = new Date(start); d0.setHours(0,0,0,0);
+        for (let t = d0.getTime(); t <= end; t += DAY) { const d = new Date(t);
+          add(d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(), d.toLocaleDateString([], { month:"short", day:"numeric" })); }
+      } else {
+        const d = new Date(start); d.setDate(1); d.setHours(0,0,0,0);
+        while (d.getTime() <= end) { add(d.getFullYear()+"-"+(d.getMonth()+1), d.toLocaleDateString([], { month:"short" })); d.setMonth(d.getMonth()+1); }
+      }
+      const keyOf = (ts) => { const d = new Date(ts);
+        if (unit === "hour") return "h"+d.getDate()+"-"+d.getHours();
+        if (unit === "day") return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+        return d.getFullYear()+"-"+(d.getMonth()+1); };
+      orders.forEach((o) => { const k = keyOf(o.ts); if (idx[k] != null) { buckets[idx[k]].value += o.total; buckets[idx[k]].count++; } });
+      return buckets;
+    }
+
+    function renderChart(buckets) {
+      if (!buckets.length) { $("chart").innerHTML = '<p class="section-sub">No data for this period.</p>'; return; }
+      const max = Math.max(1, ...buckets.map((b) => b.value));
+      const every = Math.ceil(buckets.length / 10);
+      $("chart").innerHTML = '<div class="chart">' + buckets.map((b, i) =>
+        `<div class="bar" style="height:${(b.value/max*100).toFixed(1)}%" title="${b.label}: ${money(b.value)} · ${b.count} orders">
+           <span class="lbl" style="${i % every ? "display:none" : ""}">${b.label}</span>
+         </div>`).join("") + "</div>";
+    }
+
+    function renderDashboard() {
+      const range = periodRange();
+      if (!range) return;
+      const [start, end] = range;
+      const r = Store.revenueReport(start, end);
+      $("kpis").innerHTML = `
+        <div class="kpi"><div class="label">Revenue</div><div class="value">${money(r.total)}</div></div>
+        <div class="kpi"><div class="label">Orders</div><div class="value">${r.count}</div></div>
+        <div class="kpi"><div class="label">Items sold</div><div class="value">${r.items}</div></div>
+        <div class="kpi"><div class="label">Avg order</div><div class="value">${money(r.avg)}</div></div>`;
+      const labels = { today:"Today", week:"This week", month:"This month", year:"This year", custom:"Custom range" };
+      $("chartTitle").textContent = "Revenue — " + (labels[period] || "");
+      renderChart(buildBuckets(r.orders, start, end));
+
+      const recent = r.orders.slice().sort((a,b) => b.ts - a.ts).slice(0, 10);
+      $("recentOrders").innerHTML = recent.length ? `
+        <table class="admin"><thead><tr><th>Ref</th><th>Date</th><th>Items</th><th>Method</th><th>Type</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>${recent.map((o) => `<tr>
+          <td>${o.ref}</td><td>${new Date(o.ts).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</td>
+          <td>${o.items}</td><td>${o.method || "—"}</td><td>${o.mode || "—"}</td>
+          <td style="text-align:right; font-weight:600;">${money(o.total)}</td></tr>`).join("")}</tbody></table>`
+        : '<p class="section-sub">No orders in this period.</p>';
+    }
+
+    function seedData() {
+      if (!confirm("Replace all order history with ~1 year of sample data?")) return;
+      const n = Store.seedSampleOrders();
+      UI.toast(`Loaded ${n} sample orders`);
+      renderDashboard();
+    }
+    function clearData() {
+      if (!confirm("Delete all order history?")) return;
+      Store.clearOrders(); UI.toast("Order history cleared"); renderDashboard();
+    }
+    window.seedData = seedData; window.clearData = clearData;
+
+    /* ================= PRODUCTS ================= */
+    function adminProductList() {
+      const e = Store.getCatalogEdits();
+      const hidden = e.hidden || [];
+      const base = Store.getBaseProducts().map((p) =>
+        Object.assign({}, p, e.overrides[p.id] || {}, { _builtin: true, _hidden: hidden.includes(p.id) }));
+      const added = (e.added || []).map((p) => Object.assign({}, p, { _builtin: false, _hidden: hidden.includes(p.id) }));
+      return base.concat(added);
+    }
+
+    function renderProducts() {
+      const list = adminProductList();
+      // category datalist
+      $("catList").innerHTML = [...new Set(list.map((p) => p.category))].map((c) => `<option value="${UI.esc(c)}">`).join("");
+      $("productTable").innerHTML = `
+        <thead><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Unit</th><th>Barcode</th><th>Halal</th><th>Type</th><th>Actions</th></tr></thead>
+        <tbody>${list.map((p) => `
+          <tr class="${p._hidden ? "hidden-row" : ""}">
+            <td style="font-size:1.4rem">${UI.esc(p.emoji || "🛒")}</td>
+            <td><b>${UI.esc(p.name)}</b></td>
+            <td>${UI.esc(p.category)}</td>
+            <td>$${Number(p.price).toFixed(2)}</td>
+            <td>${UI.esc(p.unit)}</td>
+            <td style="font-family:monospace;font-size:0.82rem;">${Barcode.value(p)}</td>
+            <td>${p.halal ? UI.badge(p.halal) : "—"}</td>
+            <td><span class="tag ${p._builtin ? "" : "added"}">${p._builtin ? "built-in" : "added"}</span></td>
+            <td style="white-space:nowrap">
+              <button class="link-btn" onclick="openProductModal('${p.id}')">Edit</button>
+              <a class="link-btn" href="labels.html?id=${p.id}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Label</a>
+              <button class="link-btn" onclick="toggleHide('${p.id}')">${p._hidden ? "Show" : "Hide"}</button>
+              ${p._builtin ? "" : `<button class="link-btn danger" onclick="deleteProduct('${p.id}')">Delete</button>`}
+            </td>
+          </tr>`).join("")}</tbody>`;
+    }
+
+    function slugify(s) {
+      return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
+    }
+    function uniqueId(base) {
+      const all = adminProductList().map((p) => p.id);
+      let id = base, n = 2;
+      while (all.includes(id)) id = base + "-" + n++;
+      return id;
+    }
+
+    function openProductModal(id) {
+      const editing = !!id;
+      $("modalTitle").textContent = editing ? "Edit product" : "Add product";
+      $("pEditId").value = id || "";
+      let p = { name:"", category:"", price:"", unit:"", emoji:"", halal:"", butcher:"", image:"", desc:"", barcode:"" };
+      if (editing) p = adminProductList().find((x) => x.id === id) || p;
+      $("pName").value = p.name || ""; $("pCategory").value = p.category || "";
+      $("pPrice").value = p.price ?? ""; $("pUnit").value = p.unit || "";
+      $("pEmoji").value = p.emoji || ""; $("pHalal").value = p.halal || "";
+      $("pButcher").value = p.butcher || ""; $("pImage").value = p.image || ""; $("pDesc").value = p.desc || "";
+      $("pBarcode").value = p.barcode || "";
+      $("pBarcode").placeholder = editing ? ("auto: " + Barcode.value(p)) : "e.g. real UPC, or leave blank";
+      $("modalBg").classList.add("show");
+    }
+    function closeProductModal() { $("modalBg").classList.remove("show"); }
+    window.openProductModal = openProductModal; window.closeProductModal = closeProductModal;
+
+    function saveProduct() {
+      const name = $("pName").value.trim();
+      const price = parseFloat($("pPrice").value);
+      if (!name) { alert("Name is required"); return; }
+      if (isNaN(price) || price < 0) { alert("Enter a valid price"); return; }
+      const fields = {
+        name, category: $("pCategory").value.trim() || "Grocery",
+        price, unit: $("pUnit").value.trim() || "each",
+        emoji: $("pEmoji").value.trim() || "🛒",
+        halal: $("pHalal").value || null, desc: $("pDesc").value.trim(),
+      };
+      if ($("pButcher").value) fields.butcher = $("pButcher").value;
+      if ($("pImage").value.trim()) fields.image = $("pImage").value.trim();
+      if ($("pBarcode").value.trim()) fields.barcode = $("pBarcode").value.trim();
+
+      const e = Store.getCatalogEdits();
+      const editId = $("pEditId").value;
+      if (editId) {
+        const addedIdx = (e.added || []).findIndex((x) => x.id === editId);
+        if (addedIdx >= 0) e.added[addedIdx] = Object.assign({}, e.added[addedIdx], fields, { id: editId });
+        else e.overrides[editId] = Object.assign({}, e.overrides[editId], fields);
+      } else {
+        const id = uniqueId(slugify(name));
+        e.added = e.added || [];
+        e.added.push(Object.assign({ id }, fields));
+      }
+      Store.saveCatalogEdits(e);
+      closeProductModal(); renderProducts();
+      UI.toast(editId ? "Product updated" : "Product added");
+    }
+    window.saveProduct = saveProduct;
+
+    function toggleHide(id) {
+      const e = Store.getCatalogEdits(); e.hidden = e.hidden || [];
+      const i = e.hidden.indexOf(id);
+      if (i >= 0) e.hidden.splice(i, 1); else e.hidden.push(id);
+      Store.saveCatalogEdits(e); renderProducts();
+    }
+    function deleteProduct(id) {
+      if (!confirm("Delete this product?")) return;
+      const e = Store.getCatalogEdits();
+      e.added = (e.added || []).filter((x) => x.id !== id);
+      e.hidden = (e.hidden || []).filter((x) => x !== id);
+      delete (e.overrides || {})[id];
+      Store.saveCatalogEdits(e); renderProducts(); UI.toast("Product deleted");
+    }
+    function resetCatalog() {
+      if (!confirm("Discard ALL product edits and additions?")) return;
+      Store.saveCatalogEdits({ overrides:{}, added:[], hidden:[] });
+      renderProducts(); UI.toast("Catalog reset to defaults");
+    }
+    window.toggleHide = toggleHide; window.deleteProduct = deleteProduct; window.resetCatalog = resetCatalog;
+
+    /* ================= SETTINGS ================= */
+    const PAYCFG_KEY = "mwh_admin_payments";
+    function loadSettings() {
+      let c = {};
+      try { c = JSON.parse(localStorage.getItem(PAYCFG_KEY)) || {}; } catch (e) {}
+      $("setProvider").value = c.provider || PAYMENTS.provider || "demo";
+      $("setPaypal").value = c.paypalClientId || "";
+      $("setStripePub").value = c.stripePublishableKey || "";
+      $("setStripeUrl").value = c.stripeSessionUrl || PAYMENTS.stripe.createSessionUrl || "";
+      $("setSquareApp").value = c.squareAppId || "";
+      $("setSquareLoc").value = c.squareLocationId || "";
+    }
+    function saveSettings() {
+      const c = {
+        provider: $("setProvider").value,
+        paypalClientId: $("setPaypal").value.trim(),
+        stripePublishableKey: $("setStripePub").value.trim(),
+        stripeSessionUrl: $("setStripeUrl").value.trim(),
+        squareAppId: $("setSquareApp").value.trim(),
+        squareLocationId: $("setSquareLoc").value.trim(),
+      };
+      localStorage.setItem(PAYCFG_KEY, JSON.stringify(c));
+      $("settingsStatus").textContent = "✓ Saved. The storefront checkout will use these on its next load.";
+      UI.toast("Payment settings saved");
+    }
+    window.saveSettings = saveSettings;
+
+    /* ---------------- init ---------------- */
+    const today = new Date().toISOString().slice(0, 10);
+    $("cEnd").value = today;
+    $("cStart").value = new Date(Date.now() - 29*86400000).toISOString().slice(0, 10);
+
+    // auto-load sample data the first time so the dashboard isn't empty
+    if (!Store.getOrders().length) Store.seedSampleOrders();
+
+    renderDashboard();
+    renderProducts();
+    loadSettings();
+    if (location.hash) showTab(location.hash.slice(1));
+  </script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Standards — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Our Standards</div>
+      <h1>Our standards & supplier transparency</h1>
+      <p>We publish exactly who supplies our meat, where it comes from, and their halal certification — so you can buy with complete confidence.</p>
+    </div>
+  </div>
+
+  <!-- badge explainer -->
+  <section class="section-tight">
+    <div class="wrap">
+      <div class="grid grid-2">
+        <div class="feature-card" style="border-left:4px solid var(--green);">
+          <span class="halal-badge halal-green">Zabiha</span>
+          <h3 style="margin-top:10px;">Hand-slaughtered Zabiha</h3>
+          <p>Slaughtered by hand by a practising Muslim, with the Tasmiyah (Bismillah, Allahu Akbar) recited over each individual animal. The strictest standard.</p>
+        </div>
+        <div class="feature-card" style="border-left:4px solid var(--blue);">
+          <span class="halal-badge halal-blue">Halal</span>
+          <h3 style="margin-top:10px;">Machine-slaughtered Halal</h3>
+          <p>Certified halal and slaughtered by mechanical blade under continuous Muslim supervision. Clearly labelled so you can choose your standard.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- suppliers -->
+  <section class="section">
+    <div class="wrap">
+      <h2 class="section-title">Our verified suppliers</h2>
+      <p class="section-sub">Every supplier below is locally sourced in Alberta with current halal certification on file.</p>
+      <div class="grid grid-2" id="suppliers"></div>
+    </div>
+  </section>
+
+  <!-- commitments -->
+  <section class="section-tight">
+    <div class="wrap">
+      <div class="panel">
+        <h2>Our promise to you</h2>
+        <div class="grid grid-3" style="margin-top:16px;">
+          <div><h3 style="font-size:1rem;">🔍 Full traceability</h3><p style="color:var(--muted);font-size:0.9rem;">Every cut is traceable back to a named, certified supplier.</p></div>
+          <div><h3 style="font-size:1rem;">❄️ Cold chain</h3><p style="color:var(--muted);font-size:0.9rem;">Cut fresh, kept cold, and delivered within your chosen window.</p></div>
+          <div><h3 style="font-size:1rem;">📄 Certificates on file</h3><p style="color:var(--muted);font-size:0.9rem;">Up-to-date certification documents available on request and renewed yearly.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+    window.PAGE = "standards";
+
+    document.getElementById("suppliers").innerHTML = SUPPLIERS.map(s => {
+      const b = HALAL[s.method];
+      const cls = b.color === "blue" ? "halal-blue" : "halal-green";
+      return `
+        <div class="supplier">
+          <h3>${s.name} <span class="halal-badge ${cls}">${b.short}</span></h3>
+          <div class="meta">📍 ${s.location} · Supplies: <b>${s.supplies}</b></div>
+          <p style="font-size:0.9rem;color:var(--muted);">${s.note}</p>
+          <div class="cert">
+            <span>📄 ${s.cert}</span>
+            <a class="cert-link" href="#" onclick="viewCert('${s.name}');return false;">View certificate →</a>
+          </div>
+        </div>`;
+    }).join("");
+
+    function viewCert(name) {
+      UI.toast(`Certificate for ${name} would open here (PDF on file).`);
+    }
+    window.viewCert = viewCert;
+  </script>
+</body>
+</html>

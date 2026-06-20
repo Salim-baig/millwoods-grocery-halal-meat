@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Community Board — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Community</div>
+      <h1>Community board</h1>
+      <p>Prayer times, masjid announcements, and local news for the Mill Woods community.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="layout-2col">
+        <div>
+          <h2 class="section-title" style="margin-bottom:18px;">Announcements</h2>
+          <div class="grid" id="posts" style="gap:16px;"></div>
+
+          <div class="panel" style="margin-top:24px;">
+            <h2>Submit an announcement</h2>
+            <p class="section-sub" style="margin-bottom:14px;">Running an event at a local masjid or Islamic centre? Share it with the community.</p>
+            <form id="postForm">
+              <div class="field"><label>Title</label><input required placeholder="e.g. Halaqa every Sunday" /></div>
+              <div class="field"><label>Organization</label><input required placeholder="e.g. Markaz-ul-Islam" /></div>
+              <div class="field"><label>Details</label><input required placeholder="Short description" /></div>
+              <button class="btn btn-primary" type="submit">Submit for review</button>
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <div class="prayer-card">
+            <h3>🕌 Today's prayer times</h3>
+            <p style="font-size:0.84rem;opacity:.85;margin-top:2px;" id="prayerDate"></p>
+            <div class="prayer-grid" id="prayerGrid"></div>
+            <div class="jummah-banner" id="jummah"></div>
+            <p style="font-size:0.76rem;opacity:.8;margin-top:12px;" id="prayerSource"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+    window.PAGE = "community";
+
+    document.getElementById("posts").innerHTML = COMMUNITY.map(c => `
+      <div class="post">
+        <span class="tag">${c.tag}</span>
+        <h3>${c.title}</h3>
+        <div class="org">${c.org} · ${c.date}</div>
+        <p>${c.body}</p>
+      </div>`).join("");
+
+    document.getElementById("prayerDate").textContent = PRAYER_TIMES.date;
+    document.getElementById("prayerSource").textContent = PRAYER_TIMES.source;
+    document.getElementById("jummah").textContent = "🕌 Jummah: " + PRAYER_TIMES.jummah;
+    document.getElementById("prayerGrid").innerHTML = PRAYER_TIMES.times.map(t => `
+      <div class="prayer-time"><span>${t.name}</span><b>${t.time}</b></div>`).join("");
+
+    document.getElementById("postForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      e.target.reset();
+      UI.toast("Thanks! Your announcement was submitted for review.");
+    });
+  </script>
+</body>
+</html>

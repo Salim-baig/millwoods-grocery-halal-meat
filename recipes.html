@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipe Bundles — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Recipes</div>
+      <h1>Recipe-to-cart bundles</h1>
+      <p>Traditional recipes shared by Mill Woods home cooks. One click adds every ingredient — Zabiha meat, spices, and grains — straight to your cart.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid grid-3" id="recipes"></div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+    window.PAGE = "recipes";
+
+    document.getElementById("recipes").innerHTML = RECIPES.map(r => {
+      const lines = r.items.map(it => {
+        const p = PRODUCTS.find(x => x.id === it.id);
+        return `<li><span>${p.emoji} ${p.name} ${it.qty > 1 ? `×${it.qty}` : ""}</span><span>${UI.money(p.price * it.qty)}</span></li>`;
+      }).join("");
+      const total = r.items.reduce((s, it) => s + PRODUCTS.find(x => x.id === it.id).price * it.qty, 0);
+      return `
+        <div class="recipe-card">
+          <div class="recipe-head">
+            <div class="emoji">${r.emoji}</div>
+            <h3>${r.title}</h3>
+            <div class="meta">${r.author} · ${r.serves} · ${r.time}</div>
+          </div>
+          <div class="recipe-body">
+            <p class="blurb">${r.blurb}</p>
+            <ul class="ingredient-list">${lines}</ul>
+            <div class="summary-row total" style="margin:0 0 14px;border:none;padding:0;font-size:1.05rem;">
+              <span>Bundle total</span><span>${UI.money(total)}</span>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="addRecipe('${r.id}')">🛒 Add all ${r.items.length} ingredients</button>
+          </div>
+        </div>`;
+    }).join("");
+
+    function addRecipe(id) {
+      const r = RECIPES.find(x => x.id === id);
+      r.items.forEach(it => {
+        const p = PRODUCTS.find(x => x.id === it.id);
+        if (p) Store.addItem(p, { qty: it.qty });
+      });
+      UI.toast(`Added ${r.items.length} ingredients for ${r.title}`);
+    }
+    window.addRecipe = addRecipe;
+  </script>
+</body>
+</html>
