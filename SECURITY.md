@@ -8,7 +8,7 @@ Date: 2026-06-20. `/security-review` couldn't run (not a git repo), so this is a
 | # | Issue | Severity | Status |
 |---|-------|----------|--------|
 | 1 | Stored XSS via unescaped product fields | High | ✅ Fixed |
-| 2 | No auth on Admin & POS pages | High | ⚠️ Open (needs backend) |
+| 2 | No auth on Admin & POS pages | High | 🟡 Mitigated (client-side gate; real auth needs backend) |
 | 3 | Client-trusted prices / payment amount | High (go-live) | ⚠️ Documented |
 | 4 | Third-party CDN script without SRI | Medium | ✅ Fixed (vendored) |
 | 5 | No Content-Security-Policy / security headers | Medium | ⚠️ Open (host config) |
@@ -31,14 +31,17 @@ index, shop, product, cart, pos, labels, and the admin table, plus the image-URL
 shared `thumbInner`. Verified: injected `<img onerror>`, `<script>`, and an attribute-breakout URL
 all render as inert text and do not execute.
 
-### 2. No authentication / authorization on Admin & POS — OPEN
-`admin.html` and `pos.html` are reachable by anyone (and linked in the footer). They allow editing
-the catalog & prices, changing payment provider/keys, viewing/clearing revenue, and processing
-sales. There is no login.
-**Remediation:** these must sit behind real **server-side authentication** before launch. As a
-client-only prototype there's no secure way to gate them in the browser. Interim: remove the public
-footer links and serve `admin.html`/`pos.html` behind HTTP auth / a protected path. (A browser-only
-"passcode" is not real security — anyone can read the JS.)
+### 2. No authentication / authorization on Admin & POS — MITIGATED (client-side)
+`admin.html` and `pos.html` allow editing the catalog & prices, changing payment config, viewing/
+clearing revenue, and processing sales.
+**Done:** added a **client-side passcode gate** (`login.html` + a session guard at the top of
+admin/POS that redirects unauthenticated sessions to login; passcode stored only as a SHA-256 hash;
+auth held in `sessionStorage`; "Log out" links added). Default passcode `millwoods2026` — change it
+by replacing `PASS_HASH` in `login.html` (instructions are in that file).
+**Caveat / still required for production:** this is a **deterrent, not real security** — the page
+source and hash are public, so a determined user can bypass it. Real protection needs **server-side
+authentication** (gate these pages behind a backend/login service). Don't rely on the client gate
+for anything that truly must be protected.
 
 ### 3. Client-trusted pricing & payment amount — DOCUMENTED
 Prices, cart totals, and the amount sent to the Stripe/Square backend are all computed in the

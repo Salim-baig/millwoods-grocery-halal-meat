@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff Login — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <section class="section">
+    <div class="wrap" style="max-width:420px;">
+      <div class="panel" style="margin-top:40px;">
+        <div style="text-align:center; margin-bottom:18px;">
+          <div style="font-size:2.4rem;">🥩🔒</div>
+          <h1 style="font-size:1.4rem; margin-top:6px;">Staff Login</h1>
+          <p style="color:var(--muted); font-size:0.9rem;">Millwoods Grocery & Halal Meat — Admin &amp; Counter POS</p>
+        </div>
+        <form id="loginForm">
+          <div class="field">
+            <label>Passcode</label>
+            <input id="pass" type="password" autocomplete="current-password" autofocus
+              style="width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px; font-size:16px;">
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" style="padding:13px;">Log in</button>
+          <p id="err" style="color:#b5402f; font-size:0.86rem; margin-top:10px; display:none;">Incorrect passcode. Try again.</p>
+        </form>
+        <p style="font-size:0.78rem; color:var(--muted); margin-top:14px; text-align:center;">
+          <a href="index.html">← Back to store</a>
+        </p>
+      </div>
+      <p style="font-size:0.76rem; color:var(--muted); text-align:center; margin-top:14px;">
+        Note: this is a client-side gate for a static demo. For production, protect these pages with
+        real server-side authentication (see SECURITY.md).
+      </p>
+    </div>
+  </section>
+
+  <script>
+    // SHA-256 of the staff passcode. To change it, run:
+    //   node -e "console.log(require('crypto').createHash('sha256').update('NEWPASS').digest('hex'))"
+    // and paste the result here. (Default passcode: millwoods2026)
+    const PASS_HASH = "81c95995ff14b58f573708b5e8eb50cabbdeb8e46c22fa319aad595f3cd44bf8";
+
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    // Only allow redirecting to a local page (prevents open-redirect abuse).
+    function safeNext() {
+      const n = new URLSearchParams(location.search).get("next") || "admin.html";
+      return /^[a-z0-9_-]+\.html$/i.test(n) ? n : "admin.html";
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const val = document.getElementById("pass").value;
+      const ok = (await sha256(val)) === PASS_HASH;
+      if (ok) {
+        sessionStorage.setItem("mwh_staff", "ok");
+        location.replace(safeNext());
+      } else {
+        document.getElementById("err").style.display = "block";
+        document.getElementById("pass").select();
+      }
+    });
+  </script>
+</body>
+</html>

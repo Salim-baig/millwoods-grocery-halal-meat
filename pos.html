@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // Staff auth gate — redirect to login if this session isn't authenticated.
+    if (sessionStorage.getItem("mwh_staff") !== "ok")
+      location.replace("login.html?next=" + encodeURIComponent(location.pathname.split("/").pop() || "pos.html"));
+  </script>
   <title>Counter POS — Millwoods Grocery & Halal Meat</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
@@ -29,7 +34,7 @@
 
   <div class="page-head">
     <div class="wrap">
-      <div class="breadcrumb"><a href="admin.html">Admin</a> / Counter POS</div>
+      <div class="breadcrumb"><a href="admin.html">Admin</a> / Counter POS · <a href="#" onclick="sessionStorage.removeItem('mwh_staff');location.replace('login.html');return false;">Log out</a></div>
       <h1>🛒 Counter POS</h1>
       <p>Scan an item's barcode, enter quantity or weight, and complete the in-store sale. Sales appear in the Admin revenue dashboard.</p>
     </div>

@@ -4,6 +4,9 @@ A self-contained prototype website for Millwoods Grocery & Halal Meat (Mill Wood
 Pure HTML/CSS/vanilla JavaScript — no build step, no dependencies. Cart state persists in the
 browser via `localStorage`. **Checkout is simulated** (no real payment is taken).
 
+**🌐 Live demo:** https://salim-baig.github.io/millwoods-grocery-halal-meat/
+(Staff area: `/admin.html` and `/pos.html` — passcode `millwoods2026`.)
+
 ## Run it
 
 Any static server works. The simplest:
@@ -27,7 +30,8 @@ Or just open `index.html` directly in a browser.
 | `recipes.html` | **Recipe-to-cart bundles** — one click adds all ingredients |
 | `community.html` | **Community board** + prayer times + submit-announcement form |
 | `standards.html` | **Supplier transparency** + halal certification + badge explainer |
-| `admin.html` | **Staff admin** — revenue dashboard (today/week/month/year/custom), product add/edit/hide, and payment settings (incl. Stripe key) |
+| `login.html` | **Staff login** — passcode gate for Admin & POS (default passcode `millwoods2026`) |
+| `admin.html` | **Staff admin** (login-gated) — revenue dashboard (today/week/month/year/custom), product add/edit/hide, and payment settings (incl. Stripe key) |
 | `pos.html` | **Counter POS** — scan barcode, enter quantity/weight, build a bill, complete in-store sale (recorded to revenue), **print an 80 mm thermal receipt** |
 | `labels.html` | **Barcode labels** — prints on **80 mm thermal** (one label per item, default) or A4 sheet; `?id=<productId>` prints a single label. Linked from Admin → Print barcodes, and per-row "Label" |
 
