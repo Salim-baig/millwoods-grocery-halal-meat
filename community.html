@@ -65,11 +65,56 @@
         <p>${c.body}</p>
       </div>`).join("");
 
-    document.getElementById("prayerDate").textContent = PRAYER_TIMES.date;
-    document.getElementById("prayerSource").textContent = PRAYER_TIMES.source;
-    document.getElementById("jummah").textContent = "🕌 Jummah: " + PRAYER_TIMES.jummah;
-    document.getElementById("prayerGrid").innerHTML = PRAYER_TIMES.times.map(t => `
-      <div class="prayer-time"><span>${t.name}</span><b>${t.time}</b></div>`).join("");
+    /* ---------- prayer times (refreshes daily via Aladhan API) ---------- */
+    function to12(hhmm) {
+      let [h, m] = (hhmm || "").split(":").map(Number);
+      if (isNaN(h)) return hhmm;
+      const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+      return `${h}:${String(m).padStart(2, "0")} ${ap}`;
+    }
+    function renderPrayer(p) {
+      document.getElementById("prayerDate").textContent = p.readable;
+      document.getElementById("prayerSource").textContent = p.source || PRAYER_TIMES.source;
+      document.getElementById("jummah").textContent = "🕌 Jummah: " + (p.jummah || PRAYER_TIMES.jummah);
+      document.getElementById("prayerGrid").innerHTML = p.times.map((t) =>
+        `<div class="prayer-time"><span>${t.name}</span><b>${t.time}</b></div>`).join("");
+    }
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const cachedPrayer = JSON.parse(localStorage.getItem("mwh_prayer") || "null");
+    if (cachedPrayer && cachedPrayer.date === todayKey) {
+      renderPrayer(cachedPrayer);                 // already fetched today
+    } else {
+      // show today's date + static fallback immediately, then fetch live
+      renderPrayer({
+        readable: new Date().toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+        times: PRAYER_TIMES.times, jummah: PRAYER_TIMES.jummah, source: "Loading live times…",
+      });
+      fetchPrayer(todayKey);
+    }
+
+    function fetchPrayer(key) {
+      const d = new Date();
+      const ddmmyyyy = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+      const { lat, lng } = DELIVERY.store;
+      fetch(`https://api.aladhan.com/v1/timings/${ddmmyyyy}?latitude=${lat}&longitude=${lng}&method=2`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (!j || j.code !== 200 || !j.data) throw new Error("bad response");
+          const t = j.data.timings;
+          const times = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => ({ name, time: to12((t[name] || "").slice(0, 5)) }));
+          const h = j.data.date.hijri;
+          const p = {
+            date: key,
+            readable: j.data.date.readable + (h ? ` · ${h.day} ${h.month.en} ${h.year} AH` : ""),
+            times, jummah: PRAYER_TIMES.jummah,
+            source: "Live times for Edmonton (ISNA, method 2). Confirm with your local masjid.",
+          };
+          localStorage.setItem("mwh_prayer", JSON.stringify(p));
+          renderPrayer(p);
+        })
+        .catch(() => { document.getElementById("prayerSource").textContent = PRAYER_TIMES.source + " (offline — showing reference times)"; });
+    }
 
     document.getElementById("postForm").addEventListener("submit", (e) => {
       e.preventDefault();

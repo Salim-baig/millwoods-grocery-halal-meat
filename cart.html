@@ -26,6 +26,7 @@
   <script src="assets/js/store.js"></script>
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/payments.js"></script>
+  <script src="assets/js/notify.js"></script>
   <script>
     window.PAGE = "cart";
 
@@ -33,6 +34,7 @@
     const state = {
       mode: "delivery",   // delivery | pickup
       slot: null,         // {day, time}
+      customer: { name: "", phone: "", email: "", street: "", unit: "", postal: "" },
     };
 
     function render() {
@@ -58,6 +60,7 @@
               <div id="items"></div>
             </div>
             ${fulfilmentHTML()}
+            ${customerHTML()}
           </div>
           <div>
             ${summaryHTML()}
@@ -66,6 +69,7 @@
 
       renderItems();
       wireFulfilment();
+      wireCustomer();
       renderSummary();
     }
 
@@ -173,6 +177,67 @@
       return out;
     }
 
+    /* ---------- customer details ---------- */
+    function customerHTML() {
+      const c = state.customer;
+      const zone = Store.getZone();
+      if (state.mode === "delivery" && !c.postal && zone) c.postal = zone.formatted;
+      const e = UI.esc;
+      const addr = state.mode === "delivery" ? `
+        <div class="field"><label>Street address *</label>
+          <input id="cStreet" value="${e(c.street)}" placeholder="e.g. 123 Mill Woods Rd NW"></div>
+        <div class="grid grid-2" style="gap:14px;">
+          <div class="field"><label>Unit / Apt</label><input id="cUnit" value="${e(c.unit)}"></div>
+          <div class="field"><label>Postal code *</label><input id="cPostal" value="${e(c.postal)}" maxlength="7" style="text-transform:uppercase;"></div>
+        </div>`
+        : `<p class="section-sub" style="margin:0;">Pickup at 9232 34 Ave NW — we'll have your order ready at the chosen time.</p>`;
+      return `
+        <div class="panel" style="margin-top:20px;">
+          <h2>Your details</h2>
+          <div class="field"><label>Full name *</label><input id="cName" value="${e(c.name)}" autocomplete="name"></div>
+          <div class="grid grid-2" style="gap:14px;">
+            <div class="field"><label>Phone *</label><input id="cPhone" value="${e(c.phone)}" inputmode="tel" autocomplete="tel" placeholder="(780) 000-0000"></div>
+            <div class="field"><label>Email *</label><input id="cEmail" value="${e(c.email)}" inputmode="email" autocomplete="email" placeholder="you@email.com"></div>
+          </div>
+          ${addr}
+          <p style="font-size:0.78rem;color:var(--muted);margin-top:4px;">📧 Your receipt is emailed here once payment is finalized.</p>
+        </div>`;
+    }
+
+    function syncCustomer() {
+      const v = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : state.customer[map(id)]; };
+      const map = (id) => ({ cName:"name", cPhone:"phone", cEmail:"email", cStreet:"street", cUnit:"unit", cPostal:"postal" }[id]);
+      ["cName","cPhone","cEmail","cStreet","cUnit","cPostal"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) state.customer[map(id)] = el.value.trim();
+      });
+    }
+
+    function wireCustomer() {
+      ["cName","cPhone","cEmail","cStreet","cUnit","cPostal"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", () => { syncCustomer(); renderSummary(); });
+      });
+    }
+
+    function customerValid() {
+      const c = state.customer;
+      if (!c.name) return false;
+      if ((c.phone || "").replace(/\D/g, "").length < 7) return false;
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email || "")) return false;
+      if (state.mode === "delivery") {
+        if (!c.street) return false;
+        if (!Store.isValidPostalFormat(c.postal || "")) return false;
+      }
+      return true;
+    }
+
+    function composeAddress() {
+      const c = state.customer;
+      if (state.mode !== "delivery") return "Pickup — 9232 34 Ave NW, Edmonton, AB T6N 1C9";
+      return `${c.street}${c.unit ? ", Unit " + c.unit : ""}, Edmonton, AB ${(c.postal || "").toUpperCase()}`;
+    }
+
     /* ---------- summary + simulated checkout ---------- */
     function summaryHTML() {
       return `<div class="panel" style="position:sticky;top:90px;"><h2>Order summary</h2><div id="summary"></div></div>`;
@@ -188,11 +253,14 @@
       const total = +(sub + fee + gst).toFixed(2);
 
       const canDeliver = !isDelivery || (zone && zone.inZone);
-      const ready = state.slot && canDeliver;
+      const ready = state.slot && canDeliver && customerValid();
 
       let blocker = "";
       if (isDelivery && !(zone && zone.inZone)) blocker = "Confirm your postal code to enable delivery.";
       else if (!state.slot) blocker = `Choose a ${isDelivery?'delivery':'pickup'} window above.`;
+      else if (!customerValid()) blocker = isDelivery
+        ? "Enter your name, phone, email, and delivery address."
+        : "Enter your name, phone, and email.";
 
       document.getElementById("summary").innerHTML = `
         <div class="summary-row"><span class="muted">Subtotal</span><span>${UI.money(sub)}</span></div>
@@ -226,37 +294,60 @@
 
     function placeOrder(paid) {
       paid = paid || {};
-      const sub = Store.cartSubtotal();
+      syncCustomer();
+      const sub = +Store.cartSubtotal().toFixed(2);
       const zone = Store.getZone();
       const fee = state.mode === "delivery" ? Store.deliveryFee(zone && zone.zone, sub) : 0;
-      const total = sub + fee + sub * 0.05;
+      const gst = +(sub * 0.05).toFixed(2);
+      const total = paid.totalNum != null ? paid.totalNum : +(sub + fee + gst).toFixed(2);
+      const lines = Store.getCart().map((i) => ({
+        name: i.name, qty: i.qty, lineTotal: i.lineTotal,
+        qtyLabel: i.options ? i.options.weight : (i.qty + " ×"),
+      }));
       const order = {
-        ref: paid.ref || ("MWH-" + Math.floor(100000 + Math.random()*900000)),
-        mode: state.mode,
-        slot: state.slot,
-        total: UI.money(paid.totalNum != null ? paid.totalNum : total),
+        ref: paid.ref || ("MWH-" + Math.floor(100000 + Math.random() * 900000)),
+        ts: Date.now(),
+        mode: state.mode, slot: state.slot,
+        sub, fee, gst, total,
         items: Store.cartCount(),
         method: paid.method || "Simulated",
+        status: "new",
+        customer: {
+          name: state.customer.name, phone: state.customer.phone,
+          email: state.customer.email, address: composeAddress(),
+        },
+        lines,
       };
-      // record for the admin revenue dashboard
-      Store.recordOrder({
-        ref: order.ref, ts: Date.now(),
-        total: paid.totalNum != null ? paid.totalNum : total,
-        items: order.items, mode: order.mode, method: order.method,
-      });
+      Store.recordOrder(order);   // appears in Admin → Orders + revenue
       Store.clearCart();
+
       document.getElementById("cartRoot").innerHTML = `
         <div class="empty">
           <div class="ic">✅</div>
           <h2>Order confirmed!</h2>
-          <p>Reference <b>${order.ref}</b> · ${order.items} items · ${order.total}</p>
-          <p style="font-size:0.85rem;color:var(--muted);">Payment: ${order.method}</p>
-          <p style="margin-top:6px;">${order.mode==='delivery'?'🚚 Delivery':'🏪 Pickup'}: <b>${order.slot.day}, ${order.slot.time}</b></p>
+          <p>Reference <b>${UI.esc(order.ref)}</b> · ${order.items} items · ${UI.money(order.total)}</p>
+          <p style="font-size:0.85rem;color:var(--muted);">Payment: ${UI.esc(order.method)}</p>
+          <p style="margin-top:6px;">${order.mode==='delivery'?'🚚 Delivery':'🏪 Pickup'}: <b>${UI.esc(order.slot.day)}, ${UI.esc(order.slot.time)}</b></p>
+          <p style="margin-top:6px;font-size:0.9rem;" id="emailStatus">📧 Sending your receipt…</p>
           <p style="margin-top:10px;max-width:460px;margin-left:auto;margin-right:auto;">
-            Your fresh Zabiha order will be cut and prepared the same day, kept cold, and ${order.mode==='delivery'?'delivered to your door':'ready for curbside pickup'} in your chosen window.</p>
+            We've received your order and the store has been notified. Your fresh Zabiha order will be
+            prepared the same day, kept cold, and ${order.mode==='delivery'?'delivered to your door':'ready for curbside pickup'} in your chosen window.</p>
           <a class="btn btn-primary" href="shop.html" style="margin-top:18px;">Continue shopping →</a>
         </div>`;
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Email the receipt + alert the store (no-op in demo mode)
+      Notify.notifyOrder(order).then((r) => {
+        const el = document.getElementById("emailStatus");
+        if (!el) return;
+        if (!r.configured) {
+          el.innerHTML = `📧 Receipt for <b>${UI.esc(order.customer.email)}</b> is queued — email delivery turns on once the store configures it (Admin → Settings).`;
+        } else if (r.receipt) {
+          el.innerHTML = `✅ Receipt emailed to <b>${UI.esc(order.customer.email)}</b>.`;
+        } else {
+          el.innerHTML = `⚠️ We couldn't email the receipt — the store has your order and will follow up.`;
+        }
+      });
     }
     window.placeOrder = placeOrder;
 

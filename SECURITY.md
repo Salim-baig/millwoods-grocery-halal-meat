@@ -16,6 +16,7 @@ Date: 2026-06-20. `/security-review` couldn't run (not a git repo), so this is a
 | 7 | `target="_blank"` without `rel=noopener` | Low | ✅ Fixed |
 | 8 | Secrets handling | Low | ✅ OK (publishable-only) |
 | 9 | HTTPS required in production | Low | ⚠️ Deploy note |
+| 10 | Customer PII in localStorage; EmailJS sends client-side | Medium | ⚠️ Noted (prototype) |
 | — | No `eval` / `new Function` | — | ✅ Clean |
 
 ## Findings
@@ -78,6 +79,15 @@ Keep it that way.
 ### 9. HTTPS in production — DEPLOY NOTE
 Serve the site and the payment backend over HTTPS (required by all payment providers; prevents
 MITM and mixed-content). Move the backend off `localhost` and update the endpoint URLs.
+
+### 10. Customer PII & client-side email — NOTED (prototype)
+Checkout now stores customer **name, phone, email, and address** in `localStorage` (per-browser,
+plaintext) and, when configured, emails the receipt/alert via **EmailJS** (its SDK loads from a CDN
+only when configured, and the EmailJS public key is exposed in the browser — that key is public by
+design but is abuse-throttle-able, not a secret).
+**Remediation for production:** move order capture and email sending to the backend so PII isn't held
+in the browser and emails aren't sent with a browser-exposed key; add EmailJS domain/rate limits;
+disclose data handling in a privacy notice.
 
 ## Priorities for go-live
 1. Real auth on Admin & POS (#2).

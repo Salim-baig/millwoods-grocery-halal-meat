@@ -113,10 +113,17 @@ const Store = (() => {
     return zone.km <= DELIVERY.baseRadiusKm ? DELIVERY.baseFee : DELIVERY.extendedFee;
   }
 
-  /* ---------- orders (revenue) ---------- */
+  /* ---------- orders (revenue + fulfilment) ---------- */
+  const ORDER_STATUSES = ["new", "preparing", "ready", "out", "completed", "cancelled"];
   function getOrders() { return read(ORDERS_KEY, []); }
-  function recordOrder(o) { const a = getOrders(); a.push(o); write(ORDERS_KEY, a); }
+  function recordOrder(o) { const a = getOrders(); a.push(o); write(ORDERS_KEY, a); return o; }
   function clearOrders() { write(ORDERS_KEY, []); }
+  function updateOrderStatus(ref, status) {
+    const a = getOrders(); const o = a.find((x) => x.ref === ref);
+    if (o) { o.status = status; write(ORDERS_KEY, a); }
+    return o;
+  }
+  function countNewOrders() { return getOrders().filter((o) => o.status === "new").length; }
 
   // Aggregate revenue over [startTs, endTs] (epoch ms).
   function revenueReport(startTs, endTs) {
@@ -143,6 +150,7 @@ const Store = (() => {
           items: 1 + Math.floor(Math.random() * 8),
           mode: Math.random() < 0.6 ? "delivery" : "pickup",
           method: ["Simulated", "PayPal", "Stripe"][Math.floor(Math.random() * 3)],
+          status: "completed",
         });
       }
     }
@@ -175,6 +183,7 @@ const Store = (() => {
     cartCount, cartSubtotal,
     checkZone, saveZone, getZone, deliveryFee, normalizePostal, isValidPostalFormat,
     getOrders, recordOrder, clearOrders, revenueReport, seedSampleOrders,
+    updateOrderStatus, countNewOrders, ORDER_STATUSES,
     getCatalogEdits, saveCatalogEdits, getBaseProducts,
   };
 })();

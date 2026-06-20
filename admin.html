@@ -70,6 +70,7 @@
     <div class="wrap">
       <div class="admin-tabs">
         <button data-tab="dashboard" class="active">📊 Revenue</button>
+        <button data-tab="orders">📥 Orders <span id="newBadge" class="cart-count" style="position:static;display:none;background:var(--gold);"></span></button>
         <button data-tab="products">📦 Products</button>
         <button data-tab="settings">⚙️ Settings</button>
       </div>
@@ -101,6 +102,20 @@
         <div class="panel">
           <h2 style="font-size:1.1rem; margin-bottom:12px;">Recent orders</h2>
           <div id="recentOrders"></div>
+        </div>
+      </div>
+
+      <!-- ORDERS -->
+      <div class="tab" id="tab-orders">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <p class="section-sub" style="margin:0;">Incoming online orders to prepare & deliver. Update each order's status as you work it.</p>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:0.85rem; color:var(--muted);"><input type="checkbox" id="activeOnly" onchange="renderOrders()"> Active only</label>
+            <button class="btn btn-ghost btn-sm" onclick="renderOrders()">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="panel" style="overflow-x:auto;">
+          <table class="admin" id="orderTable"></table>
         </div>
       </div>
 
@@ -161,6 +176,24 @@
           <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
           <p style="font-size:0.82rem; color:var(--muted); margin-top:10px;" id="settingsStatus"></p>
         </div>
+
+        <div class="panel" style="max-width:640px; margin-top:20px;">
+          <h2 style="font-size:1.15rem; margin-bottom:6px;">Order emails &amp; alerts</h2>
+          <p class="section-sub" style="margin-bottom:14px;">Emails the customer a receipt and alerts the store on every new online order. Uses
+            <a href="https://www.emailjs.com" target="_blank" rel="noopener noreferrer">EmailJS</a> (works on a static site). Leave blank to keep email off.</p>
+          <div class="field">
+            <label>Store notification email (where new-order alerts go)</label>
+            <input id="setStoreEmail" type="email" placeholder="orders@millwoodshalal.ca">
+          </div>
+          <div class="field"><label>EmailJS Public Key</label><input id="setEjsKey" placeholder="public key"></div>
+          <div class="field"><label>EmailJS Service ID</label><input id="setEjsService" placeholder="service_xxx"></div>
+          <div class="field"><label>EmailJS Template ID</label><input id="setEjsTemplate" placeholder="template_xxx"></div>
+          <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Template variables to add in EmailJS:
+            <code>to_email</code>, <code>subject</code>, <code>message</code>, <code>order_ref</code>.</p>
+          <button class="btn btn-primary" onclick="saveNotify()">Save email settings</button>
+          <button class="btn btn-ghost" onclick="testEmail()" style="margin-left:8px;">Send test alert</button>
+          <p style="font-size:0.82rem; color:var(--muted); margin-top:10px;" id="notifyStatus"></p>
+        </div>
       </div>
     </div>
   </section>
@@ -212,6 +245,7 @@
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/payments.js"></script>
   <script src="assets/js/barcode.js"></script>
+  <script src="assets/js/notify.js"></script>
   <script>
     window.PAGE = "admin";
     const $ = (id) => document.getElementById(id);
@@ -223,6 +257,7 @@
     function showTab(name) {
       document.querySelectorAll(".admin-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
       document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
+      if (name === "orders") renderOrders();
       location.hash = name;
     }
 
@@ -326,6 +361,85 @@
       Store.clearOrders(); UI.toast("Order history cleared"); renderDashboard();
     }
     window.seedData = seedData; window.clearData = clearData;
+
+    /* ================= ORDERS ================= */
+    const STATUS_LABEL = { new:"🆕 New", preparing:"👨‍🍳 Preparing", ready:"✅ Ready",
+      out:"🚚 Out for delivery", completed:"📦 Completed", cancelled:"✖ Cancelled" };
+
+    function updateNewBadge() {
+      const n = Store.countNewOrders();
+      const b = $("newBadge");
+      b.textContent = n; b.style.display = n ? "inline-grid" : "none";
+    }
+
+    function renderOrders() {
+      const activeOnly = $("activeOnly") && $("activeOnly").checked;
+      let orders = Store.getOrders().filter((o) => o.customer); // online orders carry customer details
+      if (activeOnly) orders = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+      orders.sort((a, b) => b.ts - a.ts);
+      updateNewBadge();
+      if (!orders.length) {
+        $("orderTable").innerHTML = `<tbody><tr><td style="padding:20px;color:var(--muted)">No online orders yet. Orders placed at checkout appear here.</td></tr></tbody>`;
+        return;
+      }
+      $("orderTable").innerHTML = `
+        <thead><tr><th>Ref</th><th>Received</th><th>Type</th><th>When</th><th>Customer</th><th>Contact</th><th>Address</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>${orders.map((o) => {
+          const c = o.customer || {};
+          return `<tr style="${o.status === "new" ? "background:#fffbeb;" : ""}">
+            <td><b>${UI.esc(o.ref)}</b></td>
+            <td style="white-space:nowrap;">${new Date(o.ts).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</td>
+            <td>${o.mode === "delivery" ? "🚚 Delivery" : "🏪 Pickup"}</td>
+            <td style="font-size:0.82rem;">${o.slot ? UI.esc(o.slot.day) + "<br>" + UI.esc(o.slot.time) : "—"}</td>
+            <td>${UI.esc(c.name || "—")}</td>
+            <td style="font-size:0.82rem;">${UI.esc(c.phone || "")}<br>${UI.esc(c.email || "")}</td>
+            <td style="font-size:0.82rem; max-width:220px;">${UI.esc(c.address || "—")}</td>
+            <td>${o.items}</td>
+            <td style="font-weight:600;">${money(o.total)}</td>
+            <td><select onchange="setStatus('${UI.esc(o.ref)}', this.value)">
+              ${Store.ORDER_STATUSES.map((s) => `<option value="${s}" ${o.status === s ? "selected" : ""}>${STATUS_LABEL[s] || s}</option>`).join("")}
+            </select></td>
+          </tr>`;
+        }).join("")}</tbody>`;
+    }
+    function setStatus(ref, status) { Store.updateOrderStatus(ref, status); renderOrders(); }
+    window.renderOrders = renderOrders; window.setStatus = setStatus;
+
+    /* ================= ORDER EMAILS / ALERTS ================= */
+    function loadNotify() {
+      const c = Notify.config(); const e = c.emailjs || {};
+      $("setStoreEmail").value = c.storeEmail || "";
+      $("setEjsKey").value = e.publicKey || "";
+      $("setEjsService").value = e.serviceId || "";
+      $("setEjsTemplate").value = e.templateId || "";
+    }
+    function saveNotify() {
+      const c = {
+        storeEmail: $("setStoreEmail").value.trim(),
+        emailjs: {
+          publicKey: $("setEjsKey").value.trim(),
+          serviceId: $("setEjsService").value.trim(),
+          templateId: $("setEjsTemplate").value.trim(),
+        },
+      };
+      localStorage.setItem("mwh_admin_notify", JSON.stringify(c));
+      $("notifyStatus").textContent = Notify.isConfigured()
+        ? "✓ Saved. Email is ON — customers get receipts and the store gets alerts."
+        : "✓ Saved. Email stays OFF until Public Key, Service ID, and Template ID are all set.";
+      UI.toast("Email settings saved");
+    }
+    async function testEmail() {
+      saveNotify();
+      const to = $("setStoreEmail").value.trim();
+      if (!Notify.isConfigured()) { $("notifyStatus").textContent = "Fill in all three EmailJS fields first."; return; }
+      if (!to) { $("notifyStatus").textContent = "Enter a store email to send the test to."; return; }
+      $("notifyStatus").textContent = "Sending test…";
+      try {
+        await Notify.send(to, "Test alert — Millwoods Halal", "✅ Your EmailJS setup works. New-order alerts will arrive here.", "TEST");
+        $("notifyStatus").textContent = "✅ Test sent to " + to;
+      } catch (e) { console.error(e); $("notifyStatus").textContent = "⚠️ Test failed — check your EmailJS IDs (see console)."; }
+    }
+    window.saveNotify = saveNotify; window.testEmail = testEmail;
 
     /* ================= PRODUCTS ================= */
     function adminProductList() {
@@ -478,8 +592,10 @@
     if (!Store.getOrders().length) Store.seedSampleOrders();
 
     renderDashboard();
+    renderOrders();
     renderProducts();
     loadSettings();
+    loadNotify();
     if (location.hash) showTab(location.hash.slice(1));
   </script>
 </body>

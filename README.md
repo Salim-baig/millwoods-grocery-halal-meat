@@ -31,7 +31,7 @@ Or just open `index.html` directly in a browser.
 | `community.html` | **Community board** + prayer times + submit-announcement form |
 | `standards.html` | **Supplier transparency** + halal certification + badge explainer |
 | `login.html` | **Staff login** — passcode gate for Admin & POS (default passcode `millwoods2026`) |
-| `admin.html` | **Staff admin** (login-gated) — revenue dashboard (today/week/month/year/custom), product add/edit/hide, and payment settings (incl. Stripe key) |
+| `admin.html` | **Staff admin** (login-gated) — revenue dashboard, **incoming Orders queue** (status + new-order badge), product add/edit/hide, and payment + **email/notification** settings |
 | `pos.html` | **Counter POS** — scan barcode, enter quantity/weight, build a bill, complete in-store sale (recorded to revenue), **print an 80 mm thermal receipt** |
 | `labels.html` | **Barcode labels** — prints on **80 mm thermal** (one label per item, default) or A4 sheet; `?id=<productId>` prints a single label. Linked from Admin → Print barcodes, and per-row "Label" |
 
@@ -97,6 +97,17 @@ assets/
   reprint. After a POS sale, **Print receipt (80 mm)** renders an isolated thermal receipt (store
   header, line items, subtotal/GST/total, ref) into a hidden iframe and prints it — sized to a
   72 mm print body for 80 mm paper.
+- **Online orders, notifications & receipts:** checkout collects the customer's name, phone, email,
+  and (for delivery) full address; the completed order is recorded with a fulfilment **status** and
+  shows in **Admin → Orders** (newest first, with a new-order badge and a status dropdown:
+  new → preparing → ready → out → completed). Receipts to the customer and a new-order alert to the
+  store are sent via **EmailJS** (`assets/js/notify.js`), configured in **Admin → Settings → Order
+  emails**. ⚠️ Because this is a *static* site, `localStorage` is per-browser — the admin on another
+  device only learns about an order via the **email alert** (or a backend). Without EmailJS configured
+  the order is still recorded/shown; email just stays off.
+- **Prayer times** on the Community page refresh **daily** from the free
+  [Aladhan API](https://aladhan.com/prayer-times-api) (ISNA method) for the store's coordinates,
+  cached per-day in `localStorage`, with today's Gregorian + Hijri date and a static fallback offline.
 - Replace mock data in `data.js` with a real inventory feed/CMS.
 - **Real payments are scaffolded** — see [PAYMENTS.md](PAYMENTS.md). Checkout defaults to a
   simulated (`demo`) flow; set `PAYMENTS.provider` + credentials in `assets/js/payments.js` to go
