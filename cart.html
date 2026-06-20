@@ -143,39 +143,73 @@
       renderSlots();
     }
 
-    /* generate next 4 days of 2-hour windows */
+    // 2-hour windows (start/end in 24h). Delivery cancels the two morning
+    // windows (no delivery before 2 PM); pickup keeps them.
+    const WINDOWS = [
+      { label: "10:00 AM – 12:00 PM", start: 10, end: 12 },
+      { label: "12:00 PM – 2:00 PM",  start: 12, end: 14 },
+      { label: "2:00 PM – 4:00 PM",   start: 14, end: 16 },
+      { label: "4:00 PM – 6:00 PM",   start: 16, end: 18 },
+      { label: "6:00 PM – 8:00 PM",   start: 18, end: 20 },
+    ];
+    const PREP_HOURS = 2; // same-day orders need >= 2h lead time
+
+    function parseHour(s) { // "10 AM" -> 10, "6 PM" -> 18, "11 AM" -> 11
+      const m = /(\d+)\s*(AM|PM)/i.exec(s || ""); if (!m) return null;
+      let h = +m[1]; const pm = /PM/i.test(m[2]);
+      if (pm && h !== 12) h += 12; if (!pm && h === 12) h = 0; return h;
+    }
+
+    // Build the next few OPEN days with their valid windows, computed from the
+    // real current date/time, store hours, the delivery rule, and the prep buffer.
+    function availableSlots() {
+      const names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const now = new Date();
+      const earliest = now.getTime() + PREP_HOURS * 3600 * 1000;
+      const isDelivery = state.mode === "delivery";
+      const days = [];
+      for (let i = 0; i < 10 && days.length < 4; i++) {
+        const d = new Date(now); d.setDate(now.getDate() + i); d.setHours(0, 0, 0, 0);
+        const hrs = STORE.hours[d.getDay()];
+        if (!hrs || hrs.closed) continue;                 // skip closed days (e.g. Tuesday)
+        const openH = parseHour(hrs.open), closeH = parseHour(hrs.close);
+        const isToday = i === 0;
+        const wins = WINDOWS.filter((w) => {
+          if (w.start < openH || w.end > closeH) return false;   // must fit store hours
+          if (isDelivery && w.start < 14) return false;          // delivery starts at 2 PM
+          if (isToday) {
+            const sStart = new Date(d); sStart.setHours(w.start, 0, 0, 0);
+            if (sStart.getTime() < earliest) return false;       // 2h prep buffer (no past slots)
+          }
+          return true;
+        });
+        if (!wins.length) continue;
+        days.push({ label: `${names[d.getDay()]}, ${d.toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`, wins });
+      }
+      return days;
+    }
+
     function renderSlots() {
       const slotsEl = document.getElementById("slots");
       if (!slotsEl) return;
-      const days = nextDays(4);
-      const windows = ["10:00 AM – 12:00 PM", "12:00 PM – 2:00 PM", "2:00 PM – 4:00 PM", "4:00 PM – 6:00 PM", "6:00 PM – 8:00 PM"];
-      slotsEl.innerHTML = days.map(d => `
+      const days = availableSlots();
+      // drop a previously chosen slot that is no longer offered
+      if (state.slot && !days.some((d) => d.label === state.slot.day && d.wins.some((w) => w.label === state.slot.time)))
+        state.slot = null;
+      if (!days.length) {
+        slotsEl.innerHTML = `<p class="section-sub" style="margin:0;">No ${state.mode} windows available right now — please call (780) 485-3504.</p>`;
+        return;
+      }
+      slotsEl.innerHTML = days.map((d) => `
         <div class="day-label">${d.label}</div>
         <div class="slot-grid">
-          ${windows.map((w, i) => {
-            // disable a couple of early slots on "today" to feel realistic
-            const disabled = d.isToday && i < 2;
-            const sel = state.slot && state.slot.day === d.label && state.slot.time === w;
-            return `<div class="slot ${disabled?'disabled':''} ${sel?'active':''}"
-                      ${disabled?'':`onclick="pickSlot('${d.label}','${w}')"`}>${w}</div>`;
+          ${d.wins.map((w) => {
+            const sel = state.slot && state.slot.day === d.label && state.slot.time === w.label;
+            return `<div class="slot ${sel ? "active" : ""}" onclick="pickSlot('${d.label}','${w.label}')">${w.label}</div>`;
           }).join("")}
         </div>`).join("");
     }
     window.pickSlot = (day, time) => { state.slot = { day, time }; render(); };
-
-    function nextDays(n) {
-      const names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-      const out = [];
-      const base = new Date(2026, 5, 19); // demo "today" = Fri Jun 19 2026
-      for (let i = 0; i < n; i++) {
-        const d = new Date(base); d.setDate(base.getDate() + i);
-        out.push({
-          label: `${names[d.getDay()]}, ${d.toLocaleDateString('en-CA',{month:'short',day:'numeric'})}`,
-          isToday: i === 0,
-        });
-      }
-      return out;
-    }
 
     /* ---------- customer details ---------- */
     function customerHTML() {

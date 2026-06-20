@@ -23,17 +23,6 @@
         <div>
           <h2 class="section-title" style="margin-bottom:18px;">Announcements</h2>
           <div class="grid" id="posts" style="gap:16px;"></div>
-
-          <div class="panel" style="margin-top:24px;">
-            <h2>Submit an announcement</h2>
-            <p class="section-sub" style="margin-bottom:14px;">Running an event at a local masjid or Islamic centre? Share it with the community.</p>
-            <form id="postForm">
-              <div class="field"><label>Title</label><input required placeholder="e.g. Halaqa every Sunday" /></div>
-              <div class="field"><label>Organization</label><input required placeholder="e.g. Markaz-ul-Islam" /></div>
-              <div class="field"><label>Details</label><input required placeholder="Short description" /></div>
-              <button class="btn btn-primary" type="submit">Submit for review</button>
-            </form>
-          </div>
         </div>
 
         <div>
@@ -115,12 +104,6 @@
         })
         .catch(() => { document.getElementById("prayerSource").textContent = PRAYER_TIMES.source + " (offline — showing reference times)"; });
     }
-
-    document.getElementById("postForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      e.target.reset();
-      UI.toast("Thanks! Your announcement was submitted for review.");
-    });
   </script>
 </body>
 </html>

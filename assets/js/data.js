@@ -528,18 +528,4 @@ const COMMUNITY = [
     body: "Reserve your Qurbani share early. Local Zabiha goat & lamb, processed and delivered fresh.",
     tag: "Announcement",
   },
-  {
-    title: "Weekend Islamic school registration",
-    org: "Edmonton Islamic Academy",
-    date: "Aug 2026 intake",
-    body: "Now accepting registrations for the new term. Quran, Arabic, and Islamic studies.",
-    tag: "Education",
-  },
-  {
-    title: "Community food drive",
-    org: "Mill Woods Food Bank Partnership",
-    date: "Drop-off in-store",
-    body: "Donate non-perishables at our front counter — we match every 10th donation with a fresh meat box.",
-    tag: "Charity",
-  },
 ];
