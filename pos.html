@@ -78,6 +78,7 @@
   <script src="assets/js/store.js?v=2"></script>
   <script src="assets/js/ui.js?v=2"></script>
   <script src="assets/js/barcode.js?v=2"></script>
+  <script src="assets/js/api.js?v=2"></script>
   <script>
     window.PAGE = "pos";
     const $ = (id) => document.getElementById(id);
@@ -136,7 +137,7 @@
       if (isNaN(amount) || amount <= 0) { UI.toast("Enter a valid amount"); return; }
       bill.push({
         key: pending.id + "-" + Date.now(),
-        name: pending.name, emoji: pending.emoji || "🛒",
+        id: pending.id, name: pending.name, emoji: pending.emoji || "🛒",
         kind: weighed ? "weight" : "qty",
         amount, unit: pending.unit, unitPrice: pending.price,
         lineTotal: +(pending.price * amount).toFixed(2),
@@ -178,15 +179,27 @@
     function clearSale() { bill = []; renderBill(); focusScan(); }
     window.removeLine = removeLine; window.clearSale = clearSale;
 
-    function completeSale() {
+    async function completeSale() {
       if (!bill.length) return;
       const ts = Date.now();
       const sub = +(bill.reduce((s, l) => s + l.lineTotal, 0)).toFixed(2);
       const gst = +(sub * 0.05).toFixed(2);
       const total = +(sub + gst).toFixed(2);
       const items = bill.reduce((s, l) => s + (l.kind === "qty" ? l.amount : 1), 0);
-      const ref = "MWH-" + Math.floor(100000 + Math.random() * 900000);
-      Store.recordOrder({ ref, ts, total, items, mode: "in-store", method: "Counter" });
+      let ref = "MWH-" + Math.floor(100000 + Math.random() * 900000);
+
+      // Centralize the sale on the backend when configured; else record locally.
+      if (API.on()) {
+        try {
+          const resp = await API.createOrder({
+            channel: "pos", method: "Counter",
+            lines: bill.map((l) => l.kind === "weight" ? { id: l.id, qty: 1, weightFactor: l.amount } : { id: l.id, qty: l.amount, weightFactor: 1 }),
+          });
+          ref = resp.ref || ref;
+        } catch (e) { console.error(e); Store.recordOrder({ ref, ts, total, items, mode: "in-store", method: "Counter", status: "completed" }); }
+      } else {
+        Store.recordOrder({ ref, ts, total, items, mode: "in-store", method: "Counter", status: "completed" });
+      }
       lastSale = { ref, ts, lines: bill.slice(), sub, gst, total, items, method: "Counter" };
       bill = [];
       $("bill").innerHTML = `

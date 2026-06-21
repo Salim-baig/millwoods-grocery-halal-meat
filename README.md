@@ -105,6 +105,13 @@ assets/
   emails**. ⚠️ Because this is a *static* site, `localStorage` is per-browser — the admin on another
   device only learns about an order via the **email alert** (or a backend). Without EmailJS configured
   the order is still recorded/shown; email just stays off.
+- **Backend (optional, for real cross-device orders):** [`server/`](server/) is a runnable
+  Express API (orders with **server-side price validation**, staff auth, email, payments) that also
+  serves the site. It **can't run on GitHub Pages** (static only) — deploy it on a no-VM host. A
+  [`render.yaml`](render.yaml) blueprint is included for **Render's free tier**. After deploying,
+  open **Admin → Settings → Backend connection** and paste the backend URL: the storefront then
+  sends orders to the server and the admin reads/updates them there (orders sync across devices).
+  Leave it blank to keep the pure-static localStorage behaviour. See [server/README.md](server/README.md).
 - **Prayer times** on the Community page refresh **daily** from the free
   [Aladhan API](https://aladhan.com/prayer-times-api) (ISNA method) for the store's coordinates,
   cached per-day in `localStorage`, with today's Gregorian + Hijri date and a static fallback offline.

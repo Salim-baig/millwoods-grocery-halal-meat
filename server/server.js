@@ -143,25 +143,31 @@ function alertText(o) {
 // Create an online order (public). Prices are recomputed server-side.
 app.post("/api/orders", async (req, res) => {
   const b = req.body || {};
-  if (!b.customer || !b.customer.email || !b.customer.name) return res.status(400).json({ error: "missing customer details" });
+  const channel = b.channel === "pos" ? "pos" : "online";        // pos = in-store counter sale
+  if (channel === "online" && (!b.customer || !b.customer.email || !b.customer.name))
+    return res.status(400).json({ error: "missing customer details" });
   const priced = priceOrder(b);
   if (priced.error) return res.status(400).json({ error: priced.error });
 
+  const c = b.customer || {};
   const order = {
     ref: "MWH-" + Math.floor(100000 + Math.random() * 900000),
     ts: Date.now(),
-    mode: b.mode === "pickup" ? "pickup" : "delivery",
+    channel,
+    mode: channel === "pos" ? "in-store" : (b.mode === "pickup" ? "pickup" : "delivery"),
     slot: b.slot || null,
-    customer: { name: b.customer.name, phone: b.customer.phone, email: b.customer.email, address: b.customer.address || "" },
+    customer: { name: c.name || "Walk-in (POS)", phone: c.phone || "", email: c.email || "", address: c.address || "" },
     lines: priced.lines, sub: priced.sub, fee: priced.fee, gst: priced.gst, total: priced.total,
-    items: priced.items, method: b.method || "Pending", status: "new",
+    items: priced.items, method: b.method || (channel === "pos" ? "Counter" : "Pending"),
+    status: channel === "pos" ? "completed" : "new",
   };
   const orders = readOrders(); orders.push(order); writeOrders(orders);
 
-  // fire-and-forget emails
-  sendMail(order.customer.email, `Your Millwoods order ${order.ref}`, receiptText(order)).catch((e) => console.error("receipt:", e.message));
-  sendMail(process.env.STORE_EMAIL, `New order ${order.ref}`, alertText(order)).catch((e) => console.error("alert:", e.message));
-
+  // emails only for online orders (POS is handed over in person)
+  if (channel === "online") {
+    sendMail(order.customer.email, `Your Millwoods order ${order.ref}`, receiptText(order)).catch((e) => console.error("receipt:", e.message));
+    sendMail(process.env.STORE_EMAIL, `New order ${order.ref}`, alertText(order)).catch((e) => console.error("alert:", e.message));
+  }
   res.json({ ok: true, ref: order.ref, total: order.total, order });
 });
 // List orders (staff only).

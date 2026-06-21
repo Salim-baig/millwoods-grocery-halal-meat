@@ -149,6 +149,7 @@
           cut: document.getElementById("cut").value,
           prep: document.getElementById("prep").value,
           weight: w.options[w.selectedIndex].text,
+          weightFactor: parseFloat(w.value) || 1,
           notes: document.getElementById("notes").value.trim() || null,
         };
       }

@@ -111,7 +111,7 @@
           <p class="section-sub" style="margin:0;">Incoming online orders to prepare & deliver. Update each order's status as you work it.</p>
           <div style="display:flex; gap:8px; align-items:center;">
             <label style="font-size:0.85rem; color:var(--muted);"><input type="checkbox" id="activeOnly" onchange="renderOrders()"> Active only</label>
-            <button class="btn btn-ghost btn-sm" onclick="renderOrders()">↻ Refresh</button>
+            <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Refresh</button>
           </div>
         </div>
         <div class="panel" style="overflow-x:auto;">
@@ -142,6 +142,18 @@
           <b>Stripe/Square secret keys must live on the server</b> (<code>server/.env</code>) — never in the browser.
           The publishable key / client ID below is what the site uses. See <a href="PAYMENTS.md">PAYMENTS.md</a>.
         </div>
+        <div class="panel" style="max-width:640px; margin-bottom:20px;">
+          <h2 style="font-size:1.15rem; margin-bottom:6px;">Backend connection</h2>
+          <p class="section-sub" style="margin-bottom:14px;">Paste your backend URL (e.g. your Render address) to sync orders across devices.
+            Leave blank to use this browser only. After changing it, log out & back in.</p>
+          <div class="field">
+            <label>Backend API URL</label>
+            <input id="setApiBase" placeholder="https://millwoods-halal.onrender.com">
+          </div>
+          <button class="btn btn-primary" onclick="saveApiBase()">Save &amp; reload</button>
+          <span id="apiState" style="font-size:0.85rem; color:var(--muted); margin-left:10px;"></span>
+        </div>
+
         <div class="panel" style="max-width:640px;">
           <h2 style="font-size:1.15rem; margin-bottom:16px;">Payment settings</h2>
           <div class="field">
@@ -246,6 +258,7 @@
   <script src="assets/js/payments.js?v=2"></script>
   <script src="assets/js/barcode.js?v=2"></script>
   <script src="assets/js/notify.js?v=2"></script>
+  <script src="assets/js/api.js?v=2"></script>
   <script>
     window.PAGE = "admin";
     const $ = (id) => document.getElementById(id);
@@ -257,7 +270,7 @@
     function showTab(name) {
       document.querySelectorAll(".admin-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
       document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
-      if (name === "orders") renderOrders();
+      if (name === "orders") refreshAll();
       location.hash = name;
     }
 
@@ -290,6 +303,32 @@
     window.applyCustom = applyCustom;
 
     function money(n) { return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    /* Unified order cache — backend when configured, else localStorage. */
+    let ADMIN_ORDERS = [];
+    async function loadAdminOrders() {
+      if (API.on()) {
+        try { ADMIN_ORDERS = await API.listOrders(); return; }
+        catch (e) { console.error(e); ADMIN_ORDERS = []; }
+      } else { ADMIN_ORDERS = Store.getOrders(); }
+    }
+    function reportFrom(orders, start, end) {
+      const f = orders.filter((o) => o.ts >= start && o.ts <= end);
+      const total = f.reduce((s, o) => s + (o.total || 0), 0);
+      const items = f.reduce((s, o) => s + (o.items || 0), 0);
+      const count = f.length;
+      return { total, items, count, avg: count ? total / count : 0, orders: f };
+    }
+    const isOnlineOrder = (o) => o.channel === "online" || (!o.channel && o.customer);
+
+    /* Backend URL setting */
+    function saveApiBase() {
+      const v = $("setApiBase").value.trim().replace(/\/+$/, "");
+      if (v) localStorage.setItem("mwh_api_base", v); else localStorage.removeItem("mwh_api_base");
+      localStorage.removeItem("mwh_staff_token"); // force re-login against the new backend
+      location.reload();
+    }
+    window.saveApiBase = saveApiBase;
 
     function buildBuckets(orders, start, end) {
       const DAY = 86400000, span = end - start;
@@ -330,7 +369,7 @@
       const range = periodRange();
       if (!range) return;
       const [start, end] = range;
-      const r = Store.revenueReport(start, end);
+      const r = reportFrom(ADMIN_ORDERS, start, end);
       $("kpis").innerHTML = `
         <div class="kpi"><div class="label">Revenue</div><div class="value">${money(r.total)}</div></div>
         <div class="kpi"><div class="label">Orders</div><div class="value">${r.count}</div></div>
@@ -350,31 +389,35 @@
         : '<p class="section-sub">No orders in this period.</p>';
     }
 
-    function seedData() {
+    async function refreshAll() { await loadAdminOrders(); renderDashboard(); renderOrders(); }
+
+    async function seedData() {
+      if (API.on()) { alert("Sample data is for browser-only mode. A backend is connected, so orders come from the server."); return; }
       if (!confirm("Replace all order history with ~1 year of sample data?")) return;
       const n = Store.seedSampleOrders();
       UI.toast(`Loaded ${n} sample orders`);
-      renderDashboard();
+      await refreshAll();
     }
-    function clearData() {
+    async function clearData() {
+      if (API.on()) { alert("A backend is connected — clear orders on the server, not here."); return; }
       if (!confirm("Delete all order history?")) return;
-      Store.clearOrders(); UI.toast("Order history cleared"); renderDashboard();
+      Store.clearOrders(); UI.toast("Order history cleared"); await refreshAll();
     }
-    window.seedData = seedData; window.clearData = clearData;
+    window.seedData = seedData; window.clearData = clearData; window.refreshAll = refreshAll;
 
     /* ================= ORDERS ================= */
     const STATUS_LABEL = { new:"🆕 New", preparing:"👨‍🍳 Preparing", ready:"✅ Ready",
       out:"🚚 Out for delivery", completed:"📦 Completed", cancelled:"✖ Cancelled" };
 
     function updateNewBadge() {
-      const n = Store.countNewOrders();
+      const n = ADMIN_ORDERS.filter((o) => o.status === "new" && isOnlineOrder(o)).length;
       const b = $("newBadge");
       b.textContent = n; b.style.display = n ? "inline-grid" : "none";
     }
 
     function renderOrders() {
       const activeOnly = $("activeOnly") && $("activeOnly").checked;
-      let orders = Store.getOrders().filter((o) => o.customer); // online orders carry customer details
+      let orders = ADMIN_ORDERS.filter(isOnlineOrder); // online orders to fulfil
       if (activeOnly) orders = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
       orders.sort((a, b) => b.ts - a.ts);
       updateNewBadge();
@@ -402,7 +445,11 @@
           </tr>`;
         }).join("")}</tbody>`;
     }
-    function setStatus(ref, status) { Store.updateOrderStatus(ref, status); renderOrders(); }
+    async function setStatus(ref, status) {
+      if (API.on()) { try { await API.setStatus(ref, status); } catch (e) { console.error(e); UI.toast("Couldn't update status (re-login?)"); } await loadAdminOrders(); }
+      else { Store.updateOrderStatus(ref, status); ADMIN_ORDERS = Store.getOrders(); }
+      renderOrders(); renderDashboard();
+    }
     window.renderOrders = renderOrders; window.setStatus = setStatus;
 
     /* ================= ORDER EMAILS / ALERTS ================= */
@@ -567,6 +614,8 @@
       $("setStripeUrl").value = c.stripeSessionUrl || PAYMENTS.stripe.createSessionUrl || "";
       $("setSquareApp").value = c.squareAppId || "";
       $("setSquareLoc").value = c.squareLocationId || "";
+      $("setApiBase").value = API.base();
+      $("apiState").textContent = API.on() ? "● Connected to backend" : "○ Browser-only (no backend)";
     }
     function saveSettings() {
       const c = {
@@ -584,19 +633,22 @@
     window.saveSettings = saveSettings;
 
     /* ---------------- init ---------------- */
-    const today = new Date().toISOString().slice(0, 10);
-    $("cEnd").value = today;
-    $("cStart").value = new Date(Date.now() - 29*86400000).toISOString().slice(0, 10);
+    (async function init() {
+      const today = new Date().toISOString().slice(0, 10);
+      $("cEnd").value = today;
+      $("cStart").value = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
 
-    // auto-load sample data the first time so the dashboard isn't empty
-    if (!Store.getOrders().length) Store.seedSampleOrders();
+      // demo data only in browser-only mode (a backend has its own orders)
+      if (!API.on() && !Store.getOrders().length) Store.seedSampleOrders();
 
-    renderDashboard();
-    renderOrders();
-    renderProducts();
-    loadSettings();
-    loadNotify();
-    if (location.hash) showTab(location.hash.slice(1));
+      await loadAdminOrders();
+      renderDashboard();
+      renderOrders();
+      renderProducts();
+      loadSettings();
+      loadNotify();
+      if (location.hash) showTab(location.hash.slice(1));
+    })();
   </script>
 </body>
 </html>

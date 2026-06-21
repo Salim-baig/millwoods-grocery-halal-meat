@@ -1,0 +1,35 @@
+# Render blueprint — deploys the backend (which also serves the site).
+# 1. Push to GitHub (done).  2. On render.com → New → Blueprint → pick this repo.
+# 3. Set the env vars marked sync:false (passcode, secret, email, payment keys).
+services:
+  - type: web
+    name: millwoods-halal
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: SITE_URL
+        sync: false            # set to your Render URL, e.g. https://millwoods-halal.onrender.com
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: STAFF_PASSCODE
+        sync: false
+      - key: SERVER_SECRET
+        generateValue: true
+      - key: STORE_EMAIL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false

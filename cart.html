@@ -27,6 +27,7 @@
   <script src="assets/js/ui.js?v=2"></script>
   <script src="assets/js/payments.js?v=2"></script>
   <script src="assets/js/notify.js?v=2"></script>
+  <script src="assets/js/api.js?v=2"></script>
   <script>
     window.PAGE = "cart";
 
@@ -326,64 +327,78 @@
       });
     }
 
-    function placeOrder(paid) {
+    async function placeOrder(paid) {
       paid = paid || {};
       syncCustomer();
+      const cart = Store.getCart();
       const sub = +Store.cartSubtotal().toFixed(2);
       const zone = Store.getZone();
       const fee = state.mode === "delivery" ? Store.deliveryFee(zone && zone.zone, sub) : 0;
       const gst = +(sub * 0.05).toFixed(2);
       const total = paid.totalNum != null ? paid.totalNum : +(sub + fee + gst).toFixed(2);
-      const lines = Store.getCart().map((i) => ({
-        name: i.name, qty: i.qty, lineTotal: i.lineTotal,
-        qtyLabel: i.options ? i.options.weight : (i.qty + " ×"),
-      }));
-      const order = {
-        ref: paid.ref || ("MWH-" + Math.floor(100000 + Math.random() * 900000)),
-        ts: Date.now(),
-        mode: state.mode, slot: state.slot,
-        sub, fee, gst, total,
-        items: Store.cartCount(),
-        method: paid.method || "Simulated",
-        status: "new",
-        customer: {
-          name: state.customer.name, phone: state.customer.phone,
-          email: state.customer.email, address: composeAddress(),
-        },
-        lines,
+      const method = paid.method || "Simulated";
+      const customer = {
+        name: state.customer.name, phone: state.customer.phone, email: state.customer.email,
+        postal: state.customer.postal, address: composeAddress(),
       };
-      Store.recordOrder(order);   // appears in Admin → Orders + revenue
-      Store.clearCart();
 
+      // ---- Backend mode: server is the source of truth & emails ----
+      if (API.on()) {
+        const payload = {
+          channel: "online", mode: state.mode, slot: state.slot, method, customer,
+          lines: cart.map((i) => ({ id: i.id, qty: i.qty, weightFactor: (i.options && i.options.weightFactor) || 1, options: i.options || null })),
+        };
+        let resp;
+        try { resp = await API.createOrder(payload); }
+        catch (e) { console.error(e); UI.toast("Couldn't reach the store server — please try again."); return; }
+        const o = resp.order || { ref: resp.ref, total: resp.total };
+        Store.clearCart();
+        showConfirmation({ ref: o.ref, total: o.total, items: o.items || payload.lines.reduce((n, l) => n + l.qty, 0),
+          mode: state.mode, slot: state.slot, method, customer }, "server");
+        return;
+      }
+
+      // ---- Static mode: localStorage + EmailJS ----
+      const lines = cart.map((i) => ({ name: i.name, qty: i.qty, lineTotal: i.lineTotal, qtyLabel: i.options ? i.options.weight : (i.qty + " ×") }));
+      const order = {
+        ref: paid.ref || ("MWH-" + Math.floor(100000 + Math.random() * 900000)), ts: Date.now(),
+        mode: state.mode, slot: state.slot, sub, fee, gst, total, items: Store.cartCount(),
+        method, status: "new", customer, lines,
+      };
+      Store.recordOrder(order);
+      Store.clearCart();
+      showConfirmation(order, "local");
+    }
+    window.placeOrder = placeOrder;
+
+    function showConfirmation(o, source) {
       document.getElementById("cartRoot").innerHTML = `
         <div class="empty">
           <div class="ic">✅</div>
           <h2>Order confirmed!</h2>
-          <p>Reference <b>${UI.esc(order.ref)}</b> · ${order.items} items · ${UI.money(order.total)}</p>
-          <p style="font-size:0.85rem;color:var(--muted);">Payment: ${UI.esc(order.method)}</p>
-          <p style="margin-top:6px;">${order.mode==='delivery'?'🚚 Delivery':'🏪 Pickup'}: <b>${UI.esc(order.slot.day)}, ${UI.esc(order.slot.time)}</b></p>
-          <p style="margin-top:6px;font-size:0.9rem;" id="emailStatus">📧 Sending your receipt…</p>
+          <p>Reference <b>${UI.esc(o.ref)}</b> · ${o.items} items · ${UI.money(o.total)}</p>
+          <p style="font-size:0.85rem;color:var(--muted);">Payment: ${UI.esc(o.method)}</p>
+          <p style="margin-top:6px;">${o.mode==='delivery'?'🚚 Delivery':'🏪 Pickup'}: <b>${UI.esc(o.slot.day)}, ${UI.esc(o.slot.time)}</b></p>
+          <p style="margin-top:6px;font-size:0.9rem;" id="emailStatus"></p>
           <p style="margin-top:10px;max-width:460px;margin-left:auto;margin-right:auto;">
             We've received your order and the store has been notified. Your fresh Zabiha order will be
-            prepared the same day, kept cold, and ${order.mode==='delivery'?'delivered to your door':'ready for curbside pickup'} in your chosen window.</p>
+            prepared the same day, kept cold, and ${o.mode==='delivery'?'delivered to your door':'ready for curbside pickup'} in your chosen window.</p>
           <a class="btn btn-primary" href="shop.html" style="margin-top:18px;">Continue shopping →</a>
         </div>`;
       window.scrollTo({ top: 0, behavior: "smooth" });
 
-      // Email the receipt + alert the store (no-op in demo mode)
-      Notify.notifyOrder(order).then((r) => {
-        const el = document.getElementById("emailStatus");
-        if (!el) return;
-        if (!r.configured) {
-          el.innerHTML = `📧 Receipt for <b>${UI.esc(order.customer.email)}</b> is queued — email delivery turns on once the store configures it (Admin → Settings).`;
-        } else if (r.receipt) {
-          el.innerHTML = `✅ Receipt emailed to <b>${UI.esc(order.customer.email)}</b>.`;
-        } else {
-          el.innerHTML = `⚠️ We couldn't email the receipt — the store has your order and will follow up.`;
-        }
+      const el = document.getElementById("emailStatus");
+      if (source === "server") {
+        el.innerHTML = `📧 A receipt will be emailed to <b>${UI.esc(o.customer.email)}</b>.`;
+        return;
+      }
+      el.textContent = "📧 Sending your receipt…";
+      Notify.notifyOrder(o).then((r) => {
+        if (!r.configured) el.innerHTML = `📧 Receipt for <b>${UI.esc(o.customer.email)}</b> is queued — email turns on once the store configures it (Admin → Settings).`;
+        else if (r.receipt) el.innerHTML = `✅ Receipt emailed to <b>${UI.esc(o.customer.email)}</b>.`;
+        else el.innerHTML = `⚠️ We couldn't email the receipt — the store has your order and will follow up.`;
       });
     }
-    window.placeOrder = placeOrder;
 
     render();
   </script>
