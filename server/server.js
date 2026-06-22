@@ -194,8 +194,8 @@ app.post("/api/stripe/create-checkout-session", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{ quantity: 1, price_data: { currency: "cad", unit_amount: Math.round(priced.total * 100), product_data: { name: "Millwoods Halal order" } } }],
-      success_url: `${SITE_URL}/cart.html?paid=1`,
-      cancel_url: `${SITE_URL}/cart.html`,
+      success_url: `${SITE_URL}/?paid=1`,
+      cancel_url: `${SITE_URL}/`,
     });
     res.json({ url: session.url, total: priced.total });
   } catch (e) { console.error("[stripe]", e.message); res.status(500).json({ error: e.message }); }

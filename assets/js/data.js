@@ -8,9 +8,16 @@
 const STORE = {
   name: "Millwoods Grocery & Halal Meat",
   short: "Millwoods Halal",
+  tagline: "Your one stop spot for fresh and frozen halal meat, South Asian groceries, and takeout.",
+  since: "Serving the south Edmonton community since 2002.",
   phone: "+1 780-485-3504",
   email: "orders@millwoodshalal.ca",
   address: "9232 34 Ave NW, Edmonton, AB T6N 1C9",
+  // Social links — replace the # with the store's real profile URLs.
+  social: [
+    { name: "Facebook",  icon: "📘", url: "#" },
+    { name: "Instagram", icon: "📸", url: "#" },
+  ],
   // Hours indexed by Date.getDay(): 0 = Sunday … 6 = Saturday
   hours: [
     { day: "Sunday",    open: "11 AM", close: "6 PM" },

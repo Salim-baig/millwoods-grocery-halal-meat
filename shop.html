@@ -3,23 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shop — Millwoods Grocery & Halal Meat</title>
-  <link rel="stylesheet" href="assets/css/style.css?v=2" />
+  <title>Products — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=3" />
 </head>
 <body>
   <div id="header"></div>
 
   <div class="page-head">
     <div class="wrap">
-      <div class="breadcrumb"><a href="index.html">Home</a> / Shop</div>
-      <h1>Shop fresh Zabiha & halal groceries</h1>
-      <p>Meat is cut to order — open any item to choose your preparation and weight.</p>
+      <div class="breadcrumb"><a href="index.html">Home</a> / Products</div>
+      <h1>Halal meat &amp; groceries</h1>
+      <p>A look at what we carry in store. Meat prices change weekly with the market — call or visit for today's prices.</p>
     </div>
   </div>
 
   <section class="section">
     <div class="wrap">
-      <div id="deliveryBanner"></div>
       <div class="filters" id="filters"></div>
       <div class="grid grid-4" id="productGrid"></div>
     </div>
@@ -27,32 +26,19 @@
 
   <div id="footer"></div>
 
-  <script src="assets/js/data.js?v=2"></script>
-  <script src="assets/js/store.js?v=2"></script>
-  <script src="assets/js/ui.js?v=2"></script>
+  <script src="assets/js/data.js?v=3"></script>
+  <script src="assets/js/store.js?v=3"></script>
+  <script src="assets/js/ui.js?v=3"></script>
   <script>
     window.PAGE = "shop";
 
-    /* delivery banner from saved zone */
-    const zone = Store.getZone();
-    const banner = document.getElementById("deliveryBanner");
-    if (zone && zone.inZone) {
-      banner.className = "delivery-banner";
-      banner.innerHTML = `✅ Delivering to <b>${zone.zone.area}</b> (${zone.formatted}) · ~${zone.zone.km} km · ${zone.zone.eta}.
-        <a href="index.html#zone">Change</a>`;
-    } else {
-      banner.className = "delivery-banner warn";
-      banner.innerHTML = `📍 Set your postal code to confirm delivery to your area.
-        <a href="index.html#zone">Check now →</a>`;
-    }
-
     /* category filters */
-    const cats = ["All", ...new Set(PRODUCTS.map(p => p.category))];
+    const cats = ["All", ...new Set(PRODUCTS.map((p) => p.category))];
     let active = location.hash ? decodeURIComponent(location.hash.slice(1)) : "All";
     if (!cats.includes(active)) active = "All";
 
     function renderFilters() {
-      document.getElementById("filters").innerHTML = cats.map(c =>
+      document.getElementById("filters").innerHTML = cats.map((c) =>
         `<button class="chip ${c === active ? "active" : ""}" onclick="setCat('${c}')">${c}</button>`
       ).join("");
     }
@@ -60,18 +46,14 @@
     window.setCat = setCat;
 
     function renderGrid() {
-      const list = active === "All" ? PRODUCTS : PRODUCTS.filter(p => p.category === active);
-      document.getElementById("productGrid").innerHTML = list.map(p => `
+      const list = active === "All" ? PRODUCTS : PRODUCTS.filter((p) => p.category === active);
+      document.getElementById("productGrid").innerHTML = list.map((p) => `
         <a class="product-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
           <div class="product-thumb">${UI.thumbInner(p)}</div>
           <div class="product-body">
             <span class="cat">${UI.esc(p.category)}</span>
             <h3>${UI.esc(p.name)}</h3>
-            <p class="desc">${p.butcher ? "🔪 Customizable cut & weight" : UI.esc(p.desc)}</p>
-            <div class="product-foot">
-              <span class="price">${UI.money(p.price)} <small>/ ${UI.esc(p.unit)}</small></span>
-              <span class="btn btn-primary btn-sm">${p.butcher ? "Customize →" : "Add →"}</span>
-            </div>
+            <p class="desc">${UI.esc(p.desc)}</p>
           </div>
         </a>`).join("");
     }

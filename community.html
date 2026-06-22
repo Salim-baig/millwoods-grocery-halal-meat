@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Community Board — Millwoods Grocery & Halal Meat</title>
-  <link rel="stylesheet" href="assets/css/style.css?v=2" />
+  <title>Community — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=3" />
 </head>
 <body>
   <div id="header"></div>
@@ -12,98 +12,37 @@
   <div class="page-head">
     <div class="wrap">
       <div class="breadcrumb"><a href="index.html">Home</a> / Community</div>
-      <h1>Community board</h1>
-      <p>Prayer times, masjid announcements, and local news for the Mill Woods community.</p>
+      <h1>Community</h1>
+      <p>Follow us on social media for weekly specials, new arrivals, and community updates.</p>
     </div>
   </div>
 
   <section class="section">
-    <div class="wrap">
-      <div class="layout-2col">
-        <div>
-          <h2 class="section-title" style="margin-bottom:18px;">Announcements</h2>
-          <div class="grid" id="posts" style="gap:16px;"></div>
-        </div>
-
-        <div>
-          <div class="prayer-card">
-            <h3>🕌 Today's prayer times</h3>
-            <p style="font-size:0.84rem;opacity:.85;margin-top:2px;" id="prayerDate"></p>
-            <div class="prayer-grid" id="prayerGrid"></div>
-            <div class="jummah-banner" id="jummah"></div>
-            <p style="font-size:0.76rem;opacity:.8;margin-top:12px;" id="prayerSource"></p>
-          </div>
-        </div>
+    <div class="wrap" style="max-width:680px;">
+      <div class="panel" style="text-align:center;">
+        <div style="font-size:2.6rem;">📣</div>
+        <h2 style="font-size:1.3rem; margin:6px 0;">Stay connected</h2>
+        <p class="section-sub" style="margin:0 auto 20px;">
+          We post our latest specials and announcements on social media. Give us a follow!</p>
+        <div id="socialLinks" style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;"></div>
+        <p style="font-size:0.82rem; color:var(--muted); margin-top:20px;">
+          Questions? Call us at <a href="tel:+17804853504">(780) 485-3504</a> or visit us at 9232 34 Ave NW, Edmonton.</p>
       </div>
     </div>
   </section>
 
   <div id="footer"></div>
 
-  <script src="assets/js/data.js?v=2"></script>
-  <script src="assets/js/store.js?v=2"></script>
-  <script src="assets/js/ui.js?v=2"></script>
+  <script src="assets/js/data.js?v=3"></script>
+  <script src="assets/js/store.js?v=3"></script>
+  <script src="assets/js/ui.js?v=3"></script>
   <script>
     window.PAGE = "community";
 
-    document.getElementById("posts").innerHTML = COMMUNITY.map(c => `
-      <div class="post">
-        <span class="tag">${c.tag}</span>
-        <h3>${c.title}</h3>
-        <div class="org">${c.org} · ${c.date}</div>
-        <p>${c.body}</p>
-      </div>`).join("");
-
-    /* ---------- prayer times (refreshes daily via Aladhan API) ---------- */
-    function to12(hhmm) {
-      let [h, m] = (hhmm || "").split(":").map(Number);
-      if (isNaN(h)) return hhmm;
-      const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
-      return `${h}:${String(m).padStart(2, "0")} ${ap}`;
-    }
-    function renderPrayer(p) {
-      document.getElementById("prayerDate").textContent = p.readable;
-      document.getElementById("prayerSource").textContent = p.source || PRAYER_TIMES.source;
-      document.getElementById("jummah").textContent = "🕌 Jummah: " + (p.jummah || PRAYER_TIMES.jummah);
-      document.getElementById("prayerGrid").innerHTML = p.times.map((t) =>
-        `<div class="prayer-time"><span>${t.name}</span><b>${t.time}</b></div>`).join("");
-    }
-
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const cachedPrayer = JSON.parse(localStorage.getItem("mwh_prayer") || "null");
-    if (cachedPrayer && cachedPrayer.date === todayKey) {
-      renderPrayer(cachedPrayer);                 // already fetched today
-    } else {
-      // show today's date + static fallback immediately, then fetch live
-      renderPrayer({
-        readable: new Date().toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-        times: PRAYER_TIMES.times, jummah: PRAYER_TIMES.jummah, source: "Loading live times…",
-      });
-      fetchPrayer(todayKey);
-    }
-
-    function fetchPrayer(key) {
-      const d = new Date();
-      const ddmmyyyy = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-      const { lat, lng } = DELIVERY.store;
-      fetch(`https://api.aladhan.com/v1/timings/${ddmmyyyy}?latitude=${lat}&longitude=${lng}&method=2`)
-        .then((r) => r.json())
-        .then((j) => {
-          if (!j || j.code !== 200 || !j.data) throw new Error("bad response");
-          const t = j.data.timings;
-          const times = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => ({ name, time: to12((t[name] || "").slice(0, 5)) }));
-          const h = j.data.date.hijri;
-          const p = {
-            date: key,
-            readable: j.data.date.readable + (h ? ` · ${h.day} ${h.month.en} ${h.year} AH` : ""),
-            times, jummah: PRAYER_TIMES.jummah,
-            source: "Live times for Edmonton (ISNA, method 2). Confirm with your local masjid.",
-          };
-          localStorage.setItem("mwh_prayer", JSON.stringify(p));
-          renderPrayer(p);
-        })
-        .catch(() => { document.getElementById("prayerSource").textContent = PRAYER_TIMES.source + " (offline — showing reference times)"; });
-    }
+    const links = (STORE.social || []);
+    document.getElementById("socialLinks").innerHTML = links.length
+      ? links.map((s) => `<a class="btn btn-primary" href="${UI.esc(s.url)}" target="_blank" rel="noopener noreferrer" style="padding:13px 22px;">${s.icon} ${s.name}</a>`).join("")
+      : `<p class="section-sub" style="margin:0;">Social links coming soon.</p>`;
   </script>
 </body>
 </html>

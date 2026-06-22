@@ -3,63 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Millwoods Grocery & Halal Meat — Fresh Zabiha, Delivered in Mill Woods</title>
-  <meta name="description" content="Fresh Zabiha hand-slaughtered meat, halal groceries, and local delivery across Mill Woods, Edmonton. Custom butcher cuts, scheduled delivery, and curbside pickup." />
-  <link rel="stylesheet" href="assets/css/style.css?v=2" />
+  <title>Millwoods Grocery & Halal Meat — Halal Meat, Groceries & Takeout in South Edmonton</title>
+  <meta name="description" content="Your one stop spot for fresh and frozen halal meat, South Asian groceries, and takeout. Serving the south Edmonton community since 2002." />
+  <link rel="stylesheet" href="assets/css/style.css?v=3" />
 </head>
 <body>
   <div id="header"></div>
 
-  <!-- HERO + POSTAL VALIDATOR -->
-  <section class="hero" id="zone">
+  <!-- HERO -->
+  <section class="hero">
     <div class="wrap">
-      <h1>Fresh Zabiha meat & halal groceries, delivered across Mill Woods.</h1>
-      <p class="lead">Cut to order by our in-store butcher. Choose your prep, pick a delivery window, and we'll bring it fresh to your door.</p>
+      <h1>Fresh &amp; frozen halal meat, South Asian groceries &amp; takeout.</h1>
+      <p class="lead">Your one stop spot in south Edmonton. Serving the community since 2002.</p>
       <div class="hero-badges">
-        <span class="hero-badge">🟢 Hand-slaughtered Zabiha</span>
-        <span class="hero-badge">🔪 Custom butcher cuts</span>
-        <span class="hero-badge">🚚 Same-day local delivery</span>
-        <span class="hero-badge">🏪 Curbside pickup</span>
+        <span class="hero-badge">🥩 Fresh &amp; frozen halal meat</span>
+        <span class="hero-badge">🛒 South Asian groceries</span>
+        <span class="hero-badge">🍱 Hot takeout</span>
       </div>
-
-      <!-- Postal code validator -->
-      <div class="zip-card">
-        <h3>📍 Do we deliver to you?</h3>
-        <p class="hint">Enter your postal code to check our Mill Woods delivery zone before you shop.</p>
-        <form class="zip-form" id="zipForm">
-          <input id="zipInput" placeholder="e.g. T6K 2A1" maxlength="7" autocomplete="postal-code" />
-          <button class="btn btn-primary" type="submit">Check</button>
-        </form>
-        <div class="zip-result" id="zipResult"></div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:6px;">
+        <a class="btn btn-primary" href="shop.html">Browse products →</a>
+        <a class="btn btn-ghost" href="tel:+17804853504" style="background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3);">📞 Call (780) 485-3504</a>
       </div>
     </div>
   </section>
 
-  <!-- LOGISTICS FEATURES -->
+  <!-- WHAT WE OFFER -->
   <section class="section">
     <div class="wrap">
-      <h2 class="section-title">Shopping built for fresh, temperature-sensitive meat</h2>
-      <p class="section-sub">Everything is designed so your Zabiha meat reaches you fresh and exactly how you'd order it at the counter.</p>
-      <div class="grid grid-4">
+      <h2 class="section-title">What we offer</h2>
+      <p class="section-sub">Everything for your kitchen, all under one roof in Mill Woods.</p>
+      <div class="grid grid-3">
         <div class="feature-card">
-          <div class="ic">🔪</div>
-          <h3>Custom butcher checkout</h3>
-          <p>Pick bone-in or boneless, cubed, curry-cut, or minced — and choose your exact weight.</p>
+          <div class="ic">🥩</div>
+          <h3>Fresh &amp; frozen halal meat</h3>
+          <p>Goat, lamb, beef, veal, and chicken — cut fresh at our in-store counter, plus frozen favourites.</p>
         </div>
         <div class="feature-card">
-          <div class="ic">🕑</div>
-          <h3>Scheduled 2-hour windows</h3>
-          <p>Choose a delivery slot like "Saturday 2–4 PM" so your meat is handed to you fresh.</p>
+          <div class="ic">🛒</div>
+          <h3>South Asian groceries</h3>
+          <p>Rice, atta, lentils, spices, ghee, dates, drinks, and pantry essentials.</p>
         </div>
         <div class="feature-card">
-          <div class="ic">🏪</div>
-          <h3>Curbside pickup</h3>
-          <p>Pay online and pick up at a time that suits you — skip delivery fees entirely.</p>
-        </div>
-        <div class="feature-card">
-          <div class="ic">🟢</div>
-          <h3>Clear halal labels</h3>
-          <p>Green for Zabiha hand-slaughtered, blue for machine-slaughtered halal. Shop your standard.</p>
+          <div class="ic">🍱</div>
+          <h3>Hot takeout</h3>
+          <p>Freshly prepared food to grab and go. Call ahead and we'll have it ready.</p>
         </div>
       </div>
     </div>
@@ -70,147 +57,65 @@
     <div class="wrap">
       <div style="display:flex; justify-content:space-between; align-items:end; margin-bottom:24px;">
         <div>
-          <h2 class="section-title">Fresh from the counter</h2>
-          <p class="section-sub" style="margin:0;">Our most-ordered Zabiha cuts and essentials.</p>
+          <h2 class="section-title">From our counter &amp; shelves</h2>
+          <p class="section-sub" style="margin:0;">A taste of what you'll find in store.</p>
         </div>
         <a class="btn btn-ghost" href="shop.html">View all →</a>
       </div>
       <div class="grid grid-4" id="featured"></div>
+      <p class="section-sub" style="margin-top:18px;text-align:center;">
+        Meat prices change weekly with the market — please call or visit for today's prices.</p>
     </div>
   </section>
 
-  <!-- HALAL LEGEND -->
-  <section class="section-tight">
+  <!-- VISIT US -->
+  <section class="section">
     <div class="wrap">
       <div class="panel" style="display:flex; gap:30px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
         <div>
-          <h2 style="font-size:1.2rem; margin-bottom:6px;">Know exactly what you're buying</h2>
-          <p class="section-sub" style="margin:0;">Every product carries an instant halal verification label.</p>
+          <h2 style="font-size:1.3rem; margin-bottom:6px;">Visit us in Mill Woods</h2>
+          <p class="section-sub" style="margin:0;">9232 34 Ave NW, Edmonton, AB T6N 1C9</p>
+          <div class="muted" id="hoursBlock" style="font-size:0.9rem; line-height:1.7; margin-top:10px;"></div>
         </div>
-        <div style="display:flex; gap:24px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <span class="halal-badge halal-green">Zabiha</span>
-            <span style="font-size:0.88rem; color:var(--muted);">Hand-slaughtered, Tasmiyah recited</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <span class="halal-badge halal-blue">Halal</span>
-            <span style="font-size:0.88rem; color:var(--muted);">Machine-slaughtered, certified halal</span>
-          </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <a class="btn btn-primary" href="tel:+17804853504">📞 Call us</a>
+          <a class="btn btn-ghost" href="https://maps.google.com/?q=9232+34+Ave+NW+Edmonton+AB+T6N+1C9" target="_blank" rel="noopener noreferrer">📍 Get directions</a>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- RECIPE TEASER -->
-  <section class="section">
-    <div class="wrap">
-      <div style="display:flex; justify-content:space-between; align-items:end; margin-bottom:24px;">
-        <div>
-          <h2 class="section-title">Cook it tonight — one click adds everything</h2>
-          <p class="section-sub" style="margin:0;">Recipes from Mill Woods home cooks. Add the full ingredient list to your cart instantly.</p>
-        </div>
-        <a class="btn btn-ghost" href="recipes.html">All recipes →</a>
-      </div>
-      <div class="grid grid-3" id="recipeTeaser"></div>
     </div>
   </section>
 
   <div id="footer"></div>
 
-  <script src="assets/js/data.js?v=2"></script>
-  <script src="assets/js/store.js?v=2"></script>
-  <script src="assets/js/ui.js?v=2"></script>
+  <script src="assets/js/data.js?v=3"></script>
+  <script src="assets/js/store.js?v=3"></script>
+  <script src="assets/js/ui.js?v=3"></script>
   <script>
     window.PAGE = "home";
 
-    /* ---- Postal code validator ---- */
-    const form = document.getElementById("zipForm");
-    const input = document.getElementById("zipInput");
-    const result = document.getElementById("zipResult");
-
-    // pre-fill if already verified
-    const saved = Store.getZone();
-    if (saved) { input.value = saved.formatted; showZone(Store.checkZone(saved.formatted)); }
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const info = Store.checkZone(input.value);
-      if (!info.valid) {
-        result.className = "zip-result show no";
-        result.innerHTML = "⚠️ That doesn't look like a valid Canadian postal code. Try the format <b>A1A 1A1</b>.";
-        return;
-      }
-      showZone(info);
-    });
-
-    function showZone(info) {
-      if (info.inZone) {
-        Store.saveZone(info);
-        const fee = Store.deliveryFee(info.zone, 0);
-        const feeText = fee === DELIVERY.baseFee
-          ? `Flat $${DELIVERY.baseFee} delivery (within ${DELIVERY.baseRadiusKm} km)`
-          : `$${fee} delivery`;
-        result.className = "zip-result show ok";
-        result.innerHTML = `✅ Great news — we deliver to <b>${info.zone.area}</b>!
-          <span class="pill">~${info.zone.km} km</span>
-          <span class="pill">${info.zone.eta}</span>
-          <span class="pill">${feeText}</span>
-          <br><span style="font-size:0.85rem;color:var(--muted);">Free delivery on orders over $${DELIVERY.freeThreshold}.</span>
-          <br><a href="shop.html" style="display:inline-block;margin-top:10px;font-weight:600;">Start shopping →</a>`;
-      } else {
-        result.className = "zip-result show no";
-        result.innerHTML = `😔 We don't deliver to <b>${info.formatted}</b> yet — it's outside our Mill Woods zone.
-          <br>You can still <a href="cart.html" style="font-weight:600;">order for curbside pickup</a>.`;
-      }
-    }
-
-    /* ---- Featured products ---- */
-    const featured = ["goat-leg", "chicken-whole", "beef-undercut", "lamb-shoulder"];
-    document.getElementById("featured").innerHTML = featured.map(id => {
-      const p = PRODUCTS.find(x => x.id === id);
-      return productCardHTML(p);
-    }).join("");
-
-    function productCardHTML(p) {
-      const meat = p.butcher ? "Customizable cut" : "";
+    /* ---- Featured products (browse only — no prices) ---- */
+    const featured = ["goat-leg", "chicken-whole", "beef-undercut", "fateel-rutab"];
+    document.getElementById("featured").innerHTML = featured.map((id) => {
+      const p = PRODUCTS.find((x) => x.id === id);
+      if (!p) return "";
       return `
       <a class="product-card" href="product.html?id=${p.id}" style="text-decoration:none;color:inherit;">
-        <div class="product-thumb"><span class="thumb-emoji">${UI.esc(p.emoji)}</span>${UI.badge(p.halal)}</div>
+        <div class="product-thumb">${UI.thumbInner(p)}</div>
         <div class="product-body">
           <span class="cat">${UI.esc(p.category)}</span>
           <h3>${UI.esc(p.name)}</h3>
-          <p class="desc">${meat || UI.esc(p.desc)}</p>
-          <div class="product-foot">
-            <span class="price">${UI.money(p.price)} <small>/ ${UI.esc(p.unit)}</small></span>
-            <span class="btn btn-primary btn-sm">Order →</span>
-          </div>
+          <p class="desc">${UI.esc(p.desc)}</p>
         </div>
       </a>`;
-    }
+    }).join("");
 
-    /* ---- Recipe teaser ---- */
-    document.getElementById("recipeTeaser").innerHTML = RECIPES.map(r => `
-      <div class="recipe-card">
-        <div class="recipe-head">
-          <div class="emoji">${r.emoji}</div>
-          <h3>${r.title}</h3>
-          <div class="meta">${r.author} · ${r.serves} · ${r.time}</div>
-        </div>
-        <div class="recipe-body">
-          <p class="blurb">${r.blurb}</p>
-          <button class="btn btn-primary btn-block" onclick="addRecipe('${r.id}')">🛒 Add all ingredients</button>
-        </div>
-      </div>`).join("");
-
-    function addRecipe(id) {
-      const r = RECIPES.find(x => x.id === id);
-      r.items.forEach(it => {
-        const p = PRODUCTS.find(x => x.id === it.id);
-        if (p) Store.addItem(p, { qty: it.qty });
-      });
-      UI.toast(`Added ${r.items.length} ingredients for ${r.title}`);
-    }
-    window.addRecipe = addRecipe;
+    /* ---- Store hours ---- */
+    const todayIdx = new Date().getDay();
+    document.getElementById("hoursBlock").innerHTML = STORE.hours.map((h, i) => {
+      const t = h.closed ? "Closed" : `${h.open} – ${h.close}`;
+      const hl = i === todayIdx ? "font-weight:700;color:var(--ink);" : "";
+      return `<div style="${hl}"><span style="display:inline-block;width:100px;">${h.day}</span>${t}</div>`;
+    }).join("");
   </script>
 </body>
 </html>

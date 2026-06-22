@@ -25,8 +25,7 @@ const UI = (() => {
   function thumbInner(p) {
     const src = p.image || `assets/img/${p.id}.jpg`;
     return `<img class="thumb-photo" src="${esc(src)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()">`
-      + `<span class="thumb-emoji">${p.emoji}</span>`
-      + badge(p.halal);
+      + `<span class="thumb-emoji">${p.emoji}</span>`;
   }
 
   function navLink(href, label, key) {
@@ -51,7 +50,6 @@ const UI = (() => {
   }
 
   function renderHeader() {
-    const count = Store.cartCount();
     return `
     <header class="site-header">
       <div class="topbar">
@@ -69,12 +67,8 @@ const UI = (() => {
           <div class="nav-links" id="navLinks">
             ${navLink("index.html", "Home", "home")}
             ${navLink("shop.html", "Shop", "shop")}
-            ${navLink("recipes.html", "Recipes", "recipes")}
-            ${navLink("standards.html", "Our Standards", "standards")}
             ${navLink("community.html", "Community", "community")}
-            <a class="btn btn-primary btn-sm cart-btn" href="cart.html" style="margin-left:8px;">
-              🛒 Cart <span class="cart-count" id="cartCount" ${count ? "" : 'style="display:none"'}>${count}</span>
-            </a>
+            <a class="btn btn-primary btn-sm" href="tel:${STORE.phone.replace(/[^+\d]/g, "")}" style="margin-left:8px;">📞 Call us</a>
           </div>
           <button class="hamburger" id="hamburger" aria-label="Menu">☰</button>
         </nav>
@@ -83,42 +77,34 @@ const UI = (() => {
   }
 
   function renderFooter() {
+    const social = (STORE.social || []).map((s) =>
+      `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${s.icon} ${s.name}</a>`).join("");
     return `
     <footer class="site-footer">
       <div class="wrap">
         <div>
           <h4>${STORE.name}</h4>
-          <p class="muted">Your neighbourhood source for fresh Zabiha meat, halal groceries,
-          and South Asian & Middle Eastern essentials — delivered across Mill Woods, Edmonton.</p>
-          <p class="muted" style="margin-top:10px;">${STORE.address}<br>${STORE.phone} · ${STORE.email}</p>
-          <h4 style="margin-top:16px;">Store Hours</h4>
+          <p class="muted">${STORE.tagline} ${STORE.since}</p>
+          <p class="muted" style="margin-top:10px;">${STORE.address}<br>${STORE.phone}</p>
+        </div>
+        <div>
+          <h4>Store Hours</h4>
           <div class="muted" style="font-size:0.84rem;line-height:1.6;">${hoursList()}</div>
         </div>
         <div>
-          <h4>Shop</h4>
-          <a href="shop.html">All Products</a>
-          <a href="shop.html#Zabiha Meat">Zabiha Meat</a>
-          <a href="shop.html#Poultry">Poultry</a>
-          <a href="recipes.html">Recipe Bundles</a>
-        </div>
-        <div>
-          <h4>Trust</h4>
-          <a href="standards.html">Our Standards</a>
-          <a href="standards.html">Supplier Certificates</a>
-          <a href="community.html">Community Board</a>
-          <a href="community.html">Prayer Times</a>
-        </div>
-        <div>
-          <h4>Help</h4>
-          <a href="cart.html">Delivery & Pickup</a>
-          <a href="index.html#zone">Check Your Postal Code</a>
+          <h4>Explore</h4>
+          <a href="shop.html">Browse Products</a>
+          <a href="community.html">Community</a>
           <a href="mailto:${STORE.email}">Contact Us</a>
-          <a href="admin.html">Staff Admin</a>
-          <a href="pos.html">Counter POS</a>
+        </div>
+        <div>
+          <h4>Follow Us</h4>
+          ${social}
+          <a href="admin.html" style="margin-top:8px;opacity:.7;">Staff Admin</a>
         </div>
       </div>
       <div class="footer-bottom">
-        © 2026 ${STORE.name}. Prototype site — checkout is simulated.
+        © 2026 ${STORE.name}. ${STORE.since}
       </div>
     </footer>`;
   }

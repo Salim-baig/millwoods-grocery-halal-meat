@@ -1,8 +1,13 @@
 # Millwoods Grocery & Halal Meat — Website
 
-A self-contained prototype website for Millwoods Grocery & Halal Meat (Mill Woods, Edmonton, AB).
-Pure HTML/CSS/vanilla JavaScript — no build step, no dependencies. Cart state persists in the
-browser via `localStorage`. **Checkout is simulated** (no real payment is taken).
+An informational + catalogue website for Millwoods Grocery & Halal Meat (Mill Woods, Edmonton, AB) —
+*"Your one stop spot for fresh and frozen halal meat, South Asian groceries, and takeout. Serving the
+south Edmonton community since 2002."* Pure HTML/CSS/vanilla JavaScript — no build step, no
+dependencies.
+
+The public site is **browse + visit/call** — there is **no online ordering, delivery, pickup, or
+pricing** (meat prices change weekly with the market). Staff tools (Admin/POS/backend) remain
+available behind a login for in-store use.
 
 **🌐 Live demo:** https://salim-baig.github.io/millwoods-grocery-halal-meat/
 (Staff area: `/admin.html` and `/pos.html` — passcode `millwoods2026`.)
@@ -23,31 +28,27 @@ Or just open `index.html` directly in a browser.
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Home + **postal-code delivery validator**, featured products, halal legend, recipe teaser |
-| `shop.html` | Product catalogue with category filters + halal badges |
-| `product.html` | **Custom butcher checkout** — cut / prep / weight dropdowns, live price |
-| `cart.html` | Cart + **delivery/pickup toggle**, **2-hour time-slot scheduler**, simulated checkout |
-| `recipes.html` | **Recipe-to-cart bundles** — one click adds all ingredients |
-| `community.html` | **Community board** + prayer times + submit-announcement form |
-| `standards.html` | **Supplier transparency** + halal certification + badge explainer |
+| `index.html` | Home — tagline, "what we offer", featured products (no prices), store hours & directions |
+| `shop.html` | Product catalogue with category filters (browse only — no prices/ordering) |
+| `product.html` | Product info — photo, description, in-store barcode, call/visit (no price/cart) |
+| `community.html` | **Follow us** — links to the store's social media |
 | `login.html` | **Staff login** — passcode gate for Admin & POS (default passcode `millwoods2026`) |
 | `admin.html` | **Staff admin** (login-gated) — revenue dashboard, **incoming Orders queue** (status + new-order badge), product add/edit/hide, and payment + **email/notification** settings |
 | `pos.html` | **Counter POS** — scan barcode, enter quantity/weight, build a bill, complete in-store sale (recorded to revenue), **print an 80 mm thermal receipt** |
 | `labels.html` | **Barcode labels** — prints on **80 mm thermal** (one label per item, default) or A4 sheet; `?id=<productId>` prints a single label. Linked from Admin → Print barcodes, and per-row "Label" |
 
-## Feature → file map (your original brief)
+## Editing common things
 
-1. **Local delivery & pickup logistics**
-   - Postal-code validator (homepage) → `index.html` + `Store.checkZone()` in `assets/js/store.js`
-   - Custom butcher checkout → `product.html` (dropdowns from `BUTCHER` in `data.js`)
-   - Scheduled 2-hour time slots → `cart.html` (`renderSlots()`)
-   - Curbside pickup toggle → `cart.html` (delivery/pickup toggle)
-2. **Hyper-local marketing**
-   - Community board + prayer timetables → `community.html`
-   - Recipe-to-cart bundles → `recipes.html` (and teaser on home)
-3. **Trust verification**
-   - Supplier transparency / "Our Standards" → `standards.html`
-   - Color-coded halal labels (green = Zabiha, blue = machine halal) → `UI.badge()` everywhere
+- **Store info / tagline / social links:** `STORE` in `assets/js/data.js` (address, phone, hours,
+  `tagline`, `since`, and `social` — set the Facebook/Instagram URLs there; they appear in the
+  footer and on the Community page).
+- **Products shown in the catalogue:** the `PRODUCTS` array in `assets/js/data.js` (the public site
+  shows photo, name, category, description — no price).
+
+> Note: online ordering, delivery/pickup, pricing, recipes, the supplier/"Our Standards" page, the
+> halal label badges, and prayer times were **removed** at the owner's request. The product/order/
+> payment plumbing still exists for the optional staff Admin/POS/backend, but the public storefront
+> is browse-only.
 
 ## Project structure
 
