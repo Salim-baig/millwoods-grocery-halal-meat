@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pay Online — Millwoods Grocery & Halal Meat</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=4" />
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-head">
+    <div class="wrap">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Pay Online</div>
+      <h1>Pay online</h1>
+      <p>Placing a phone or takeout order? Pay securely by card for the total we quote you.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="wrap" style="max-width:560px;">
+      <!-- Card payment (shown only when the store has card payments turned on) -->
+      <div class="panel" id="cardPanel" style="display:none; margin-bottom:20px;">
+        <h2 style="font-size:1.15rem; margin-bottom:6px;">💳 Pay by card</h2>
+        <p class="section-sub" style="margin-bottom:14px;">Enter the amount the store gave you, then continue to our secure payment page.</p>
+        <div class="field">
+          <label>Amount (CAD) *</label>
+          <input id="amount" type="number" step="0.01" min="0.50" inputmode="decimal" placeholder="0.00"
+            style="width:100%; padding:13px; border:1.5px solid var(--line); border-radius:10px; font-size:18px;">
+        </div>
+        <div class="field">
+          <label>Name or order reference (optional)</label>
+          <input id="note" maxlength="60" placeholder="e.g. Bilal — takeout order"
+            style="width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px;">
+        </div>
+        <button class="btn btn-primary btn-block" style="padding:14px;" onclick="payByCard()">Continue to secure payment →</button>
+        <p id="payStatus" style="font-size:0.85rem; color:#b5402f; margin-top:10px; display:none;"></p>
+        <p style="font-size:0.78rem; color:var(--muted); margin-top:10px; text-align:center;">🔒 Card details are entered on Square's secure page — never on this site.</p>
+      </div>
+
+      <!-- Always-available ways to pay -->
+      <div class="panel">
+        <h2 style="font-size:1.15rem; margin-bottom:6px;">Other ways to pay</h2>
+        <ul style="list-style:none; padding:0; margin:0; line-height:1.7;">
+          <li>🏪 <b>In store</b> — pay by card, debit, or cash at the counter.</li>
+          <li>💸 <b>Interac e-Transfer</b> — send to <a id="etransfer" href="#">our email</a> (auto-deposit).</li>
+          <li>📞 <b>By phone</b> — call <a href="tel:+17804853504">(780) 485-3504</a> and we'll take care of you.</li>
+        </ul>
+        <p id="cardComingSoon" style="font-size:0.85rem; color:var(--muted); margin-top:12px; display:none;">
+          💳 Online card payment is being set up — for now please use one of the options above.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/data.js?v=4"></script>
+  <script src="assets/js/store.js?v=4"></script>
+  <script src="assets/js/ui.js?v=4"></script>
+  <script>
+    window.PAGE = "pay";
+
+    // If the site is hosted separately from the backend, set this to the backend URL
+    // (e.g. "https://millwoods-halal.onrender.com"). Empty = same origin.
+    const BACKEND = "";
+    const base = () => {
+      try { return (localStorage.getItem("mwh_api_base") || BACKEND).replace(/\/+$/, ""); } catch (e) { return BACKEND; }
+    };
+
+    document.getElementById("etransfer").href = "mailto:" + STORE.email + "?subject=Interac%20e-Transfer%20payment";
+    document.getElementById("etransfer").textContent = STORE.email;
+
+    // Turn on the card form only if a backend with Square is reachable.
+    (async function detectCard() {
+      try {
+        const r = await fetch(base() + "/api/health", { cache: "no-store" });
+        const h = await r.json();
+        if (h && h.pay && h.pay.square) { document.getElementById("cardPanel").style.display = "block"; return; }
+      } catch (e) { /* no backend / not configured */ }
+      document.getElementById("cardComingSoon").style.display = "block";
+    })();
+
+    async function payByCard() {
+      const amount = parseFloat(document.getElementById("amount").value);
+      const note = document.getElementById("note").value.trim();
+      const status = document.getElementById("payStatus");
+      status.style.display = "none";
+      if (!(amount >= 0.5)) { status.textContent = "Please enter a valid amount."; status.style.display = "block"; return; }
+      try {
+        const r = await fetch(base() + "/api/square/payment-link", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ amount, note }),
+        });
+        const j = await r.json();
+        if (j.url) { window.location = j.url; return; }
+        throw new Error(j.error || "Could not start payment");
+      } catch (e) {
+        status.textContent = "Sorry — couldn't start the payment. Please pay in store, by e-Transfer, or call us.";
+        status.style.display = "block";
+      }
+    }
+    window.payByCard = payByCard;
+  </script>
+</body>
+</html>

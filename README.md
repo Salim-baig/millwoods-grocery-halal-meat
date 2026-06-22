@@ -32,6 +32,7 @@ Or just open `index.html` directly in a browser.
 | `shop.html` | Product catalogue with category filters (browse only — no prices/ordering) |
 | `product.html` | Product info — photo, description, in-store barcode, call/visit (no price/cart) |
 | `community.html` | **Follow us** — links to the store's social media |
+| `pay.html` | **Pay online** — pay-by-amount card payment via Square (for phone/takeout/weighed-meat totals), with Interac e-Transfer + call fallback |
 | `login.html` | **Staff login** — passcode gate for Admin & POS (default passcode `millwoods2026`) |
 | `admin.html` | **Staff admin** (login-gated) — revenue dashboard, **incoming Orders queue** (status + new-order badge), product add/edit/hide, and payment + **email/notification** settings |
 | `pos.html` | **Counter POS** — scan barcode, enter quantity/weight, build a bill, complete in-store sale (recorded to revenue), **print an 80 mm thermal receipt** |
@@ -45,10 +46,24 @@ Or just open `index.html` directly in a browser.
 - **Products shown in the catalogue:** the `PRODUCTS` array in `assets/js/data.js` (the public site
   shows photo, name, category, description — no price).
 
-> Note: online ordering, delivery/pickup, pricing, recipes, the supplier/"Our Standards" page, the
-> halal label badges, and prayer times were **removed** at the owner's request. The product/order/
-> payment plumbing still exists for the optional staff Admin/POS/backend, but the public storefront
-> is browse-only.
+> Note: online ordering, delivery/pickup, catalogue pricing, recipes, the supplier/"Our Standards"
+> page, the halal label badges, and prayer times were **removed** at the owner's request. The public
+> storefront is browse-only, plus a **Pay Online** page (pay-by-amount).
+
+## Online payments (Square, pay-by-amount)
+
+`pay.html` lets a customer pay a **quoted total** by card — a fit for weekly-changing meat prices and
+phone/takeout orders (no fixed catalogue prices needed). It calls the backend's
+`POST /api/square/payment-link`, which creates a **Square-hosted** payment page; card details never
+touch this site. Money settles to the store's **TD** account (Square deposits to any Canadian bank).
+
+To turn it on:
+1. Open a free **Square** account; set `SQUARE_ACCESS_TOKEN` + `SQUARE_LOCATION_ID` in `server/.env`
+   and deploy the backend (see [server/README.md](server/README.md)).
+2. If the site is hosted separately from the backend, set `BACKEND` in `pay.html` (or `mwh_api_base`
+   in localStorage) to the backend URL.
+
+Until configured, the page shows **Interac e-Transfer + call** options instead (graceful fallback).
 
 ## Project structure
 

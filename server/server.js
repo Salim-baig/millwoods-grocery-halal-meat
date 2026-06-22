@@ -220,8 +220,36 @@ app.post("/api/square/pay", async (req, res) => {
   } catch (e) { console.error("[square]", e.message); res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// Pay-by-amount: create a Square-hosted payment link for a customer-entered total.
+// (Customer pays a quoted amount — fits weighed meat / takeout without fixed catalogue prices.)
+app.post("/api/square/payment-link", async (req, res) => {
+  try {
+    if (!process.env.SQUARE_ACCESS_TOKEN) throw new Error("Square not configured");
+    const { Client, Environment } = require("square");
+    const client = new Client({
+      accessToken: process.env.SQUARE_ACCESS_TOKEN,
+      environment: process.env.SQUARE_ENV === "production" ? Environment.Production : Environment.Sandbox,
+    });
+    const dollars = Number(req.body && req.body.amount);
+    if (!(dollars > 0) || dollars > 5000) throw new Error("Enter a valid amount");
+    const note = String((req.body && req.body.note) || "Millwoods Halal order").slice(0, 80);
+    const { result } = await client.checkoutApi.createPaymentLink({
+      idempotencyKey: crypto.randomUUID(),
+      quickPay: {
+        name: note,
+        priceMoney: { amount: BigInt(Math.round(dollars * 100)), currency: "CAD" },
+        locationId: process.env.SQUARE_LOCATION_ID,
+      },
+    });
+    res.json({ url: result.paymentLink.url });
+  } catch (e) { console.error("[square link]", e.message); res.status(500).json({ error: e.message }); }
+});
+
 /* ---------- health + static site ---------- */
-app.get("/api/health", (_req, res) => res.json({ ok: true, products: CATALOG.PRODUCTS.length, orders: readOrders().length }));
+app.get("/api/health", (_req, res) => res.json({
+  ok: true, products: CATALOG.PRODUCTS.length, orders: readOrders().length,
+  pay: { square: !!process.env.SQUARE_ACCESS_TOKEN, stripe: !!process.env.STRIPE_SECRET_KEY, email: !!process.env.SMTP_HOST },
+}));
 // Never expose the backend folder; dotfiles (.env, .git) are ignored by default.
 app.use((req, res, next) => (/^\/server(\/|$)/.test(req.path) ? res.status(404).end() : next()));
 app.use(express.static(path.join(__dirname, ".."), { extensions: ["html"] }));

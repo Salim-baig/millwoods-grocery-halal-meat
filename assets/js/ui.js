@@ -68,6 +68,7 @@ const UI = (() => {
             ${navLink("index.html", "Home", "home")}
             ${navLink("shop.html", "Shop", "shop")}
             ${navLink("community.html", "Community", "community")}
+            ${navLink("pay.html", "Pay online", "pay")}
             <a class="btn btn-primary btn-sm" href="tel:${STORE.phone.replace(/[^+\d]/g, "")}" style="margin-left:8px;">📞 Call us</a>
           </div>
           <button class="hamburger" id="hamburger" aria-label="Menu">☰</button>
@@ -94,6 +95,7 @@ const UI = (() => {
         <div>
           <h4>Explore</h4>
           <a href="shop.html">Browse Products</a>
+          <a href="pay.html">Pay Online</a>
           <a href="community.html">Community</a>
           <a href="mailto:${STORE.email}">Contact Us</a>
         </div>
